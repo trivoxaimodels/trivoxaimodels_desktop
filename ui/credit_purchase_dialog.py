@@ -124,6 +124,11 @@ class CreditPurchaseDialog(QDialog):
         except Exception:
             active_packs = CREDIT_PACKS
 
+        # Get the actual currency from admin config
+        self._active_gateway = active_gateway
+        self._currency = self._get_currency()
+        self._currency_sym = self._get_currency_symbol()
+
         for pack_id, pack_info in active_packs.items():
             # Check if pack has ID for the active gateway
             gateway_key = f"{active_gateway}_id"
@@ -230,9 +235,9 @@ class CreditPurchaseDialog(QDialog):
 
         layout.addLayout(header_layout)
 
-        # Price
+        # Price — use currency from admin config
         price_val = pack_info["price"]
-        currency_sym = "₹" if active_gateway == "razorpay" else "$"
+        currency_sym = getattr(self, '_currency_sym', '₹')
         price = QLabel(f"{currency_sym}{price_val}")
         price.setStyleSheet("font-size: 20px; font-weight: bold; color: #4ade80;")
         price.setAlignment(Qt.AlignCenter)
@@ -265,6 +270,25 @@ class CreditPurchaseDialog(QDialog):
             return get_payment_config_sync().get_active_provider()
         except Exception:
             return "gumroad"
+
+    def _get_currency(self) -> str:
+        """Get the payment currency from admin config."""
+        try:
+            from core.payment_config_sync import get_payment_config_sync
+            return get_payment_config_sync().get_currency()
+        except Exception:
+            return "INR"
+
+    def _get_currency_symbol(self) -> str:
+        """Get the currency symbol for display."""
+        currency = getattr(self, '_currency', 'INR')
+        symbols = {
+            'INR': '₹',
+            'USD': '$',
+            'EUR': '€',
+            'GBP': '£',
+        }
+        return symbols.get(currency, currency + ' ')
 
     def _purchase_pack(self, pack_id: str, active_gateway: str):
         """Handle purchase of a credit pack using the active gateway."""
@@ -314,7 +338,7 @@ class CreditPurchaseDialog(QDialog):
                     f"✅ Order created successfully!\n\n"
                     f"Order ID: {order['id']}\n"
                     f"Pack: {pack_info['name']}\n"
-                    f"Price: ₹{pack_info['price']}\n\n"
+                    f"Price: {getattr(self, '_currency_sym', '₹')}{pack_info['price']}\n\n"
                     f"Complete the payment in the browser. Your credits will be added automatically.",
                 )
 
@@ -353,7 +377,7 @@ class CreditPurchaseDialog(QDialog):
                 "Purchase Started",
                 f"✅ You will be redirected to complete your purchase using Razorpay.\n\n"
                 f"Pack: {pack_info['name']}\n"
-                f"Price: ₹{pack_info['price']}\n\n"
+                f"Price: {getattr(self, '_currency_sym', '₹')}{pack_info['price']}\n\n"
                 f"Your credits will be added automatically after payment.",
             )
 
@@ -375,7 +399,7 @@ class CreditPurchaseDialog(QDialog):
             "Purchase Started",
             f"✅ You will be redirected to complete your purchase using Gumroad.\n\n"
             f"Pack: {pack_info['name']}\n"
-            f"Price: ${pack_info['price']}\n\n"
+            f"Price: {getattr(self, '_currency_sym', '₹')}{pack_info['price']}\n\n"
             f"Your credits will be added automatically after payment.",
         )
 

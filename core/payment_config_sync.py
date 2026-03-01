@@ -14,14 +14,14 @@ Features:
 
 import os
 import json
-import requests
+
 from typing import Optional, Dict, Any, Tuple
 from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
 from core.logger import get_logger
-from core.license_manager import get_license_manager
+
 from core.supabase_client import get_supabase
 
 logger = get_logger(__name__)
@@ -76,7 +76,8 @@ class PaymentConfigSync:
 
     def sync_config(self, force: bool = False) -> bool:
         """
-        Synchronize payment configuration from web API.
+        Synchronize payment configuration from Supabase payment_settings table.
+        Reads the same table the web app admin panel writes to.
 
         Args:
             force: Force sync even if cache is still valid
@@ -90,39 +91,37 @@ class PaymentConfigSync:
                 logger.debug("Payment config cache is still valid, skipping sync")
                 return True
 
-            # Get license for authentication
-            license_mgr = get_license_manager()
-            if not license_mgr or not license_mgr._current_license:
-                logger.warning("No valid license - cannot sync payment config from web")
-                # Use cached config if available
+            # Read directly from Supabase payment_settings table
+            # (same table the web admin panel writes to)
+            client = get_supabase()
+            if not client:
+                logger.warning("Supabase client not available — using cache")
+                return self._config is not None
+
+            logger.info("Syncing payment config from Supabase payment_settings table")
+            try:
+                result = (
+                    client.table("payment_settings")
+                    .select("*")
+                    .eq("is_active", True)
+                    .order("updated_at", desc=True)
+                    .limit(1)
+                    .execute()
+                )
+            except Exception as query_err:
+                logger.error(f"Supabase query failed: {query_err}")
                 if self._config:
+                    logger.info("Using cached payment config")
                     return True
                 return False
 
-            license_key = license_mgr._current_license.key
-            device_fingerprint = license_mgr._current_license.hardware_fingerprint
+            if result.data and len(result.data) > 0:
+                data = result.data[0]
 
-            # Fetch from web API
-            url = f"{WEB_API_BASE_URL}/payment-config/desktop"
-            params = {
-                "license_key": license_key,
-                "device_fingerprint": device_fingerprint,
-            }
-
-            logger.info(f"Syncing payment config from {url}")
-            response = requests.get(url, params=params, timeout=5)
-
-            if response.status_code == 200:
-                data = response.json()
-
-                if "error" in data:
-                    logger.error(f"API returned error: {data['error']}")
-                    return False
-
-                # Update config
+                # Update config from Supabase row
                 self._config = PaymentConfig(
                     provider=data.get("provider", "gumroad"),
-                    currency=data.get("currency", "USD"),
+                    currency=data.get("currency", "INR"),
                     test_mode=data.get("test_mode", True),
                     credit_packs=data.get("credit_packs", {}),
                     provider_settings=data.get("provider_settings", {}),
@@ -134,38 +133,21 @@ class PaymentConfigSync:
                 self._save_to_cache()
 
                 logger.info(
-                    f"Payment config synced successfully. Provider: {self._config.provider}"
+                    f"Payment config synced from Supabase. "
+                    f"Provider: {self._config.provider}, Currency: {self._config.currency}"
                 )
                 return True
-
-            elif response.status_code == 403:
-                error_data = response.json()
-                logger.error(
-                    f"License validation failed: {error_data.get('detail', 'Invalid license')}"
-                )
-                return False
-
             else:
-                logger.error(
-                    f"Failed to sync payment config: HTTP {response.status_code}"
-                )
-                # Use cached config if available
+                logger.warning("No active payment config found in Supabase")
                 if self._config:
-                    logger.info("Using cached payment config")
                     return True
+                # Set defaults
+                self._config = PaymentConfig(
+                    provider="gumroad",
+                    currency="INR",
+                    last_sync=datetime.now(),
+                )
                 return False
-
-        except requests.exceptions.Timeout:
-            logger.warning("Payment config sync timeout - using cache if available")
-            if not self._config:
-                self._config = PaymentConfig(last_sync=datetime.now())
-            return False
-
-        except requests.exceptions.ConnectionError:
-            logger.warning("Cannot connect to web API - using cache if available")
-            if not self._config:
-                self._config = PaymentConfig(last_sync=datetime.now())
-            return False
 
         except Exception as e:
             logger.error(f"Error syncing payment config: {e}")
@@ -300,6 +282,10 @@ class SecureKeyManager:
             Dict with key_id, key_secret, webhook_secret or None
         """
         try:
+            # Lazy imports — only needed for API key fetching
+            import requests
+            from core.license_manager import get_license_manager
+
             # Get license for authentication
             license_mgr = get_license_manager()
             if not license_mgr or not license_mgr._current_license:
