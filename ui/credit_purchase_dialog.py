@@ -2,6 +2,7 @@
 Credit Purchase Dialog - Improved version of Buy Credits functionality
 """
 
+import os
 import webbrowser
 from typing import Dict, Any, Optional
 from PySide6.QtWidgets import (
@@ -19,6 +20,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QWidget,
     QComboBox,
+    QApplication,
 )
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QFont, QPixmap
@@ -318,71 +320,87 @@ class CreditPurchaseDialog(QDialog):
     def _purchase_with_razorpay(
         self, pack_id: str, pack_info: Dict[str, Any], user_id: str
     ):
-        """Purchase credits using secure Razorpay integration."""
-        # Check if secure Razorpay is available
-        if self.payment_handler and self.payment_handler.is_available():
-            # Use secure order-based payment
-            order = self.payment_handler.create_order_for_pack(
-                pack_id=pack_id, user_id=user_id, email=self.user_email
+        """Purchase credits using Razorpay via the web app's payment link API."""
+        import requests
+
+        # The web server has the Razorpay API keys and creates a payment link
+        # Desktop app calls the same endpoint the web frontend uses
+        WEB_BASE = os.getenv(
+            "WEB_API_URL", "https://imageto3dpro-4f1j.onrender.com"
+        ).rstrip("/api/v1").rstrip("/")
+
+        create_link_url = f"{WEB_BASE}/api/razorpay/create-link"
+
+        try:
+            QApplication.setOverrideCursor(Qt.WaitCursor)
+
+            response = requests.post(
+                create_link_url,
+                json={"pack_id": pack_id, "user_id": user_id},
+                timeout=15,
             )
 
-            if order:
-                # Open standard Razorpay checkout
-                checkout_url = f"https://checkout.razorpay.com/v1/checkout.js?order_id={order['id']}"
-                webbrowser.open(checkout_url)
+            QApplication.restoreOverrideCursor()
 
-                # Show message
-                QMessageBox.information(
-                    self,
-                    "Purchase Started",
-                    f"✅ Order created successfully!\n\n"
-                    f"Order ID: {order['id']}\n"
-                    f"Pack: {pack_info['name']}\n"
-                    f"Price: {getattr(self, '_currency_sym', '₹')}{pack_info['price']}\n\n"
-                    f"Complete the payment in the browser. Your credits will be added automatically.",
-                )
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("success") and data.get("payment_url"):
+                    # Open the Razorpay payment link in browser
+                    payment_url = data["payment_url"]
+                    webbrowser.open(payment_url)
 
-                # Start polling for payment completion
-                self.payment_handler.start_payment_polling(
-                    user_id=user_id,
-                    expected_credits=pack_info["credits"],
-                    callback=self._on_payment_poll_result,
-                )
+                    currency_sym = getattr(self, '_currency_sym', '₹')
+                    QMessageBox.information(
+                        self,
+                        "Purchase Started",
+                        f"✅ Payment link created!\n\n"
+                        f"Pack: {pack_info['name']}\n"
+                        f"Price: {currency_sym}{pack_info['price']}\n"
+                        f"Credits: +{pack_info['credits']}\n\n"
+                        f"Complete the payment in the browser.\n"
+                        f"Your credits will be added automatically.",
+                    )
+
+                    # Start polling for balance update
+                    self._start_polling()
+                else:
+                    error_msg = data.get("error", "Unknown error")
+                    QMessageBox.critical(
+                        self,
+                        "Payment Error",
+                        f"Failed to create payment link:\n{error_msg}",
+                    )
             else:
                 QMessageBox.critical(
                     self,
                     "Payment Error",
-                    "Failed to create Razorpay order. Please try again or contact support.",
+                    f"Server returned error {response.status_code}.\n"
+                    f"Please try again later.",
                 )
-        else:
-            # Fallback to Payment Link method
-            razorpay_id = pack_info.get("razorpay_id")
-            if not razorpay_id:
-                QMessageBox.warning(
-                    self,
-                    "Not Configured",
-                    "Razorpay is not properly configured. Please contact support.",
-                )
-                return
 
-            # Use Payment Link
-            purchase_url = f"https://rzp.io/l/{razorpay_id}"
-            if user_id:
-                purchase_url += f"?notes[user_id]={user_id}"
-
-            webbrowser.open(purchase_url)
-
-            QMessageBox.information(
+        except requests.exceptions.Timeout:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(
                 self,
-                "Purchase Started",
-                f"✅ You will be redirected to complete your purchase using Razorpay.\n\n"
-                f"Pack: {pack_info['name']}\n"
-                f"Price: {getattr(self, '_currency_sym', '₹')}{pack_info['price']}\n\n"
-                f"Your credits will be added automatically after payment.",
+                "Timeout",
+                "Payment server took too long to respond.\n"
+                "Please check your internet connection and try again.",
             )
-
-            # Start legacy polling
-            self._start_polling()
+        except requests.exceptions.ConnectionError:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(
+                self,
+                "Connection Error",
+                "Cannot connect to payment server.\n"
+                "Please check your internet connection and try again.",
+            )
+        except Exception as e:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(
+                self,
+                "Payment Error",
+                f"An unexpected error occurred:\n{str(e)}",
+            )
 
     def _purchase_with_gumroad(self, pack_id: str, pack_info: Dict[str, Any]):
         """Purchase credits using Gumroad."""
