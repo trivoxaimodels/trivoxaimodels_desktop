@@ -41,7 +41,8 @@ from PySide6.QtWidgets import (
     QDialog,
     QGraphicsDropShadowEffect,
 )
-from PySide6.QtCore import Qt, QThread, Signal, QTimer, QSize, QSettings
+from PySide6.QtCore import Qt, QThread, Signal, QTimer, QSize, QSettings, QUrl
+from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtGui import QPixmap, QFont, QDragEnterEvent, QDropEvent, QColor
 
 # Add parent directory to path
@@ -1319,73 +1320,56 @@ class MainWindow(QMainWindow):
         return widget
 
     def _create_outputs_section(self) -> QGroupBox:
-        """Create the OUTPUTS section with OBJ, STL, GLB cards."""
-        group = QGroupBox("📦 OUTPUTS")
+        """Create the OUTPUTS section with an embedded 3D viewer."""
+        group = QGroupBox("📦 OUTPUT MODEL")
         group.setObjectName("sectionCard")
 
-        layout = QHBoxLayout(group)
+        layout = QVBoxLayout(group)
         layout.setSpacing(16)
         layout.setContentsMargins(16, 20, 16, 16)
 
-        # OBJ Card
-        self.obj_card = self._create_output_card("OBJ")
-        layout.addWidget(self.obj_card)
-
-        # STL Card
-        self.stl_card = self._create_output_card("STL")
-        layout.addWidget(self.stl_card)
-
-        # GLB Card
-        self.glb_card = self._create_output_card("GLB")
-        layout.addWidget(self.glb_card)
-
-        return group
-
-    def _create_output_card(self, format_name: str) -> QFrame:
-        """Create an output card for a specific format."""
-        card = QFrame()
-        card.setObjectName("outputCard")
-
-        layout = QVBoxLayout(card)
-        layout.setSpacing(12)
-        layout.setContentsMargins(16, 16, 16, 16)
-
-        # Format Title
-        title = QLabel(format_name)
-        title.setStyleSheet("color: #60a5fa; font-size: 16px; font-weight: bold;")
-        title.setAlignment(Qt.AlignCenter)
-        layout.addWidget(title)
-
-        # Spacer
-        layout.addStretch()
+        # 3D Viewer Area
+        self.model_viewer = QWebEngineView()
+        self.model_viewer.setObjectName("modelViewer")
+        self.model_viewer.setMinimumHeight(400)
+        
+        # Initial empty logic
+        self.model_viewer.setHtml("""
+        <html><body style="background:#0f172a; color:#64748b; font-family:sans-serif; display:flex; justify-content:center; align-items:center; height:100%; margin:0;">
+        <div style="text-align:center;">Generate a 3D model to view it here</div>
+        </body></html>
+        """)
+        
+        layout.addWidget(self.model_viewer, 1)
 
         # Buttons
         btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(8)
+        btn_layout.setSpacing(10)
+        
+        self.btn_save_obj = QPushButton("⬇️ Download OBJ")
+        self.btn_save_obj.setObjectName("primaryButton")
+        self.btn_save_obj.clicked.connect(lambda: self._on_save_output("OBJ"))
+        self.btn_save_obj.setEnabled(False)
+        self.btn_save_obj.setCursor(Qt.PointingHandCursor)
+        btn_layout.addWidget(self.btn_save_obj)
 
-        open_btn = QPushButton("Open")
-        open_btn.setObjectName("smallPrimaryButton")
-        open_btn.setCursor(Qt.PointingHandCursor)
-        open_btn.clicked.connect(lambda: self._on_open_output(format_name))
-        btn_layout.addWidget(open_btn)
+        self.btn_save_stl = QPushButton("⬇️ Download STL")
+        self.btn_save_stl.setObjectName("primaryButton")
+        self.btn_save_stl.clicked.connect(lambda: self._on_save_output("STL"))
+        self.btn_save_stl.setEnabled(False)
+        self.btn_save_stl.setCursor(Qt.PointingHandCursor)
+        btn_layout.addWidget(self.btn_save_stl)
 
-        save_btn = QPushButton("Save")
-        save_btn.setObjectName("smallSecondaryButton")
-        save_btn.setCursor(Qt.PointingHandCursor)
-        save_btn.clicked.connect(lambda: self._on_save_output(format_name))
-        btn_layout.addWidget(save_btn)
+        self.btn_save_glb = QPushButton("⬇️ Download GLB")
+        self.btn_save_glb.setObjectName("primaryButton")
+        self.btn_save_glb.clicked.connect(lambda: self._on_save_output("GLB"))
+        self.btn_save_glb.setEnabled(False)
+        self.btn_save_glb.setCursor(Qt.PointingHandCursor)
+        btn_layout.addWidget(self.btn_save_glb)
 
         layout.addLayout(btn_layout)
 
-        # Store button references on the card for later access
-        card.open_btn = open_btn
-        card.save_btn = save_btn
-
-        # Initially disable buttons until first generation completes
-        open_btn.setEnabled(False)
-        save_btn.setEnabled(False)
-
-        return card
+        return group
 
     def _create_activity_log_section(self) -> QGroupBox:
         """Create the ACTIVITY LOG section."""
@@ -2295,12 +2279,10 @@ class MainWindow(QMainWindow):
         self.generate_btn.setEnabled(False)
 
         # Disable Open/Save buttons during generation
-        self.obj_card.open_btn.setEnabled(False)
-        self.obj_card.save_btn.setEnabled(False)
-        self.stl_card.open_btn.setEnabled(False)
-        self.stl_card.save_btn.setEnabled(False)
-        self.glb_card.open_btn.setEnabled(False)
-        self.glb_card.save_btn.setEnabled(False)
+        # Disable Open/Save buttons during generation
+        self.btn_save_obj.setEnabled(False)
+        self.btn_save_stl.setEnabled(False)
+        self.btn_save_glb.setEnabled(False)
 
         self.status_label.setText("Initializing...")
         self.status_icon.setText("⏳")
@@ -2383,12 +2365,9 @@ class MainWindow(QMainWindow):
         self._add_log("🚀 Starting LOCAL 3D generation (FREE - no credits required)")
 
         # Disable Open/Save buttons during generation
-        self.obj_card.open_btn.setEnabled(False)
-        self.obj_card.save_btn.setEnabled(False)
-        self.stl_card.open_btn.setEnabled(False)
-        self.stl_card.save_btn.setEnabled(False)
-        self.glb_card.open_btn.setEnabled(False)
-        self.glb_card.save_btn.setEnabled(False)
+        self.btn_save_obj.setEnabled(False)
+        self.btn_save_stl.setEnabled(False)
+        self.btn_save_glb.setEnabled(False)
 
         # Start generation
         self.generate_btn.setEnabled(False)
@@ -2466,15 +2445,26 @@ class MainWindow(QMainWindow):
         self.generate_btn.setEnabled(True)
 
         # Enable Open/Save buttons for available formats
+        # Show the 3D model!
+        if result.get("glb") and Path(result["glb"]).exists():
+            glb_uri = Path(result["glb"]).absolute().as_uri()
+            self.model_viewer.setHtml(f"""
+            <html><head>
+            <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+            <style>body {{ margin: 0; background-color: #0f172a; overflow: hidden; }}</style>
+            </head><body>
+            <model-viewer src="{glb_uri}" alt="A 3D model" auto-rotate camera-controls style="width: 100vw; height: 100vh; border: none; outline: none;">
+            </model-viewer>
+            </body></html>
+            """)
+
+        # Enable Open/Save buttons for available formats
         if result.get("obj"):
-            self.obj_card.open_btn.setEnabled(True)
-            self.obj_card.save_btn.setEnabled(True)
+            self.btn_save_obj.setEnabled(True)
         if result.get("stl"):
-            self.stl_card.open_btn.setEnabled(True)
-            self.stl_card.save_btn.setEnabled(True)
+            self.btn_save_stl.setEnabled(True)
         if result.get("glb"):
-            self.glb_card.open_btn.setEnabled(True)
-            self.glb_card.save_btn.setEnabled(True)
+            self.btn_save_glb.setEnabled(True)
 
         self.status_label.setText("Complete!")
         self.status_icon.setText("✅")
@@ -2563,12 +2553,10 @@ class MainWindow(QMainWindow):
         self.generate_btn.setEnabled(True)
 
         # Enable buttons on error (for next retry)
-        self.obj_card.open_btn.setEnabled(True)
-        self.obj_card.save_btn.setEnabled(True)
-        self.stl_card.open_btn.setEnabled(True)
-        self.stl_card.save_btn.setEnabled(True)
-        self.glb_card.open_btn.setEnabled(True)
-        self.glb_card.save_btn.setEnabled(True)
+        # Enable buttons on error (for next retry/access to previous if any)
+        self.btn_save_obj.setEnabled(True)
+        self.btn_save_stl.setEnabled(True)
+        self.btn_save_glb.setEnabled(True)
 
         self.status_label.setText(f"Error: {error}")
         self.status_icon.setText("❌")
@@ -2606,33 +2594,7 @@ class MainWindow(QMainWindow):
             elif current_value >= 100:
                 self.eta_label.setText("ETA: 00:00")
 
-    def _on_open_output(self, format_name: str):
-        """Handle open output button click."""
-        if not hasattr(self, "_last_result") or not self._last_result:
-            QMessageBox.warning(self, "No Output", "No generated model available.")
-            return
 
-        format_key = format_name.lower()
-        file_path = self._last_result.get(format_key)
-
-        if not file_path or not Path(file_path).exists():
-            QMessageBox.warning(
-                self,
-                "File Not Found",
-                f"{format_name.upper()} file not found. Please generate a model first.",
-            )
-            return
-
-        try:
-            import platform
-
-            if platform.system() == "Windows":
-                os.startfile(file_path)
-            else:
-                subprocess.run(["open", file_path])
-            self._add_log(f"📂 Opened {format_name.upper()}: {Path(file_path).name}")
-        except Exception as e:
-            QMessageBox.warning(self, "Error", f"Could not open file: {e}")
 
     def _on_save_output(self, format_name: str):
         """Handle save output button click."""
