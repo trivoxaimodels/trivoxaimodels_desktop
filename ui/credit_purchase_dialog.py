@@ -336,7 +336,7 @@ class CreditPurchaseDialog(QDialog):
 
             response = requests.post(
                 create_link_url,
-                json={"pack_id": pack_id, "user_id": user_id},
+                json={"pack_id": pack_id, "user_id": user_id, "source": "desktop"},
                 timeout=15,
             )
 
