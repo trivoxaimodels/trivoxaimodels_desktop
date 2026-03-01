@@ -41,6 +41,15 @@ def get_resource_path(relative_path: str) -> str:
 
 def main():
     """Main entry point for the desktop application."""
+    # Force PySide6 to use software OpenGL for QWebEngine compatibility on various drivers
+    from PySide6.QtCore import Qt, QCoreApplication
+    os.environ["QT_OPENGL"] = "software"
+    QCoreApplication.setAttribute(Qt.AA_UseSoftwareOpenGL)
+    
+    # Disable Chromium GPU acceleration to fix startup crashes on some machines
+    # (Fixes "D3D11 smoke test failed" and EGL context errors)
+    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu --disable-gpu-compositing"
+    
     # Enable high DPI scaling
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
