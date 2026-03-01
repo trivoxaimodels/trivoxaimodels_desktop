@@ -1329,7 +1329,9 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(16, 20, 16, 16)
 
         # 3D Viewer Area
+        from PySide6.QtWebEngineCore import QWebEngineSettings
         self.model_viewer = QWebEngineView()
+        self.model_viewer.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
         self.model_viewer.setObjectName("modelViewer")
         self.model_viewer.setMinimumHeight(400)
         
@@ -2447,16 +2449,47 @@ class MainWindow(QMainWindow):
         # Enable Open/Save buttons for available formats
         # Show the 3D model!
         if result.get("glb") and Path(result["glb"]).exists():
-            glb_uri = Path(result["glb"]).absolute().as_uri()
+            glb_path = Path(result["glb"]).absolute()
+            glb_uri = glb_path.as_uri()
+            base_dir = QUrl.fromLocalFile(str(glb_path.parent) + "/")
+            
+            # Use model-viewer but gracefully handle PySide6 SwiftShader WebGL failures
+            # on machines without D3D11 / OpenGL.
             self.model_viewer.setHtml(f"""
             <html><head>
             <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
-            <style>body {{ margin: 0; background-color: #0f172a; overflow: hidden; }}</style>
+            <style>
+                body {{ margin: 0; background-color: #0f172a; overflow: hidden; color: white;     
+                        font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; }}
+                #fallback {{ display: none; text-align: center; padding: 20px; }}
+                .btn {{ background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 6px; 
+                       cursor: pointer; font-weight: bold; margin-top: 15px; text-decoration: none; display: inline-block; }}
+                .btn:hover {{ background: #2563eb; }}
+            </style>
             </head><body>
-            <model-viewer src="{glb_uri}" alt="A 3D model" auto-rotate camera-controls style="width: 100vw; height: 100vh; border: none; outline: none;">
+            <div id="fallback">
+                <h3>⚠️ 3D Preview Unavailable</h3>
+                <p>Your system's embedded hardware acceleration (WebGL) is disabled.</p>
+                <p style="color: #60a5fa; margin-top: 15px;">Please use the ⬇️ Download buttons below</p>
+            </div>
+            
+            <model-viewer id="mv" src="{glb_uri}" alt="A 3D model" auto-rotate camera-controls 
+                          style="width: 100vw; height: 100vh; border: none; outline: none; position: absolute; top:0; left:0;">
             </model-viewer>
+            
+            <script>
+                // Detect WebGL capability. If missing, destroy model-viewer and show fallback.
+                try {{
+                    var canvas = document.createElement('canvas');
+                    var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                    if (!gl) {{ throw new Error("No WebGL context"); }}
+                }} catch (e) {{
+                    document.getElementById('mv').remove();
+                    document.getElementById('fallback').style.display = 'block';
+                }}
+            </script>
             </body></html>
-            """)
+            """, baseUrl=base_dir)
 
         # Enable Open/Save buttons for available formats
         if result.get("obj"):
