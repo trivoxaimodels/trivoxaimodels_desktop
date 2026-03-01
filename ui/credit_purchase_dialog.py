@@ -48,13 +48,20 @@ class CreditPurchaseDialog(QDialog):
         self.setMinimumSize(600, 500)
         self.setModal(True)
 
-        # Initialize payment handler
-        self.payment_handler: Optional[PaymentHandler] = get_payment_handler()
+        # Initialize payment handler (with error handling)
+        try:
+            self.payment_handler: Optional[PaymentHandler] = get_payment_handler()
+        except Exception as e:
+            print(f"[CreditPurchaseDialog] Payment handler init error: {e}")
+            self.payment_handler = None
 
         # Connect payment handler signals
         if self.payment_handler:
-            self.payment_handler.payment_completed.connect(self._on_payment_completed)
-            self.payment_handler.payment_failed.connect(self._on_payment_failed)
+            try:
+                self.payment_handler.payment_completed.connect(self._on_payment_completed)
+                self.payment_handler.payment_failed.connect(self._on_payment_failed)
+            except Exception as e:
+                print(f"[CreditPurchaseDialog] Signal connect error: {e}")
 
         self._setup_ui()
 
@@ -107,9 +114,15 @@ class CreditPurchaseDialog(QDialog):
         packs_layout_inner = QVBoxLayout(packs_container)
         packs_layout_inner.setSpacing(12)
 
-        # Add credit packs
-        active_gateway = self._get_active_gateway()
-        active_packs = get_credit_packs() or CREDIT_PACKS
+        # Add credit packs (with error handling for network calls)
+        try:
+            active_gateway = self._get_active_gateway()
+        except Exception:
+            active_gateway = "gumroad"
+        try:
+            active_packs = get_credit_packs() or CREDIT_PACKS
+        except Exception:
+            active_packs = CREDIT_PACKS
 
         for pack_id, pack_info in active_packs.items():
             # Check if pack has ID for the active gateway

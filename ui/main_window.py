@@ -1419,12 +1419,15 @@ class MainWindow(QMainWindow):
 
         # Method selection
         self.method_group.buttonClicked.connect(self._on_method_changed)
-        self.local_card.mousePressEvent = lambda e: self.method_group.button(
-            0
-        ).setChecked(True)
-        self.cloud_card.mousePressEvent = lambda e: self.method_group.button(
-            1
-        ).setChecked(True)
+        # Card clicks should also toggle the radio AND trigger method change
+        def _click_local(e):
+            self.method_group.button(0).setChecked(True)
+            self._on_method_changed(self.method_group.button(0))
+        def _click_cloud(e):
+            self.method_group.button(1).setChecked(True)
+            self._on_method_changed(self.method_group.button(1))
+        self.local_card.mousePressEvent = _click_local
+        self.cloud_card.mousePressEvent = _click_cloud
 
         # Model selection - update resolutions when model changes
         self.model_combo.currentIndexChanged.connect(self._on_model_changed)
@@ -1758,8 +1761,8 @@ class MainWindow(QMainWindow):
             self.cloud_card.setObjectName("methodCardSelected")
             self.local_card.setObjectName("methodCard")
             self.cloud_options_widget.setVisible(True)
-            # Refresh credit info when switching to cloud
-            self._refresh_cloud_credit_display()
+            # Defer network call so UI renders first (prevents crash/freeze)
+            QTimer.singleShot(50, self._safe_refresh_cloud_credit_display)
         else:
             self.local_card.setObjectName("methodCardSelected")
             self.cloud_card.setObjectName("methodCard")
@@ -1845,9 +1848,28 @@ class MainWindow(QMainWindow):
                 }
             """)
 
+    def _safe_refresh_cloud_credit_display(self):
+        """Safe wrapper that catches all errors to prevent crashes."""
+        try:
+            self._refresh_cloud_credit_display()
+        except Exception as e:
+            print(f"[MainWindow] Cloud credit display refresh error: {e}")
+            # Set defaults on error
+            if hasattr(self, 'cloud_credit_value'):
+                self.cloud_credit_value.setText("Unable to load")
+            self._cached_trial_remaining = 0
+            self._cached_credits_balance = 0
+            try:
+                self._update_cost_preview()
+            except Exception:
+                pass
+
     def _refresh_cloud_credit_display(self):
         """Refresh the inline credit display in the cloud options section."""
         from core.credit_manager import get_user_balance
+
+        if not hasattr(self, 'cloud_credit_value'):
+            return
 
         user_id = self.session_manager.user_id
         if not user_id or not self.session_manager.is_authenticated:
@@ -1857,9 +1879,17 @@ class MainWindow(QMainWindow):
             self._update_cost_preview()
             return
 
-        balance_info = get_user_balance(
-            user_id, self.session_manager.device_fingerprint
-        )
+        try:
+            balance_info = get_user_balance(
+                user_id, self.session_manager.device_fingerprint
+            )
+        except Exception as e:
+            print(f"[MainWindow] get_user_balance error: {e}")
+            self.cloud_credit_value.setText("Connection error")
+            self._cached_trial_remaining = 0
+            self._cached_credits_balance = 0
+            self._update_cost_preview()
+            return
 
         if "error" in balance_info:
             self.cloud_credit_value.setText("Error loading")
@@ -1984,9 +2014,13 @@ class MainWindow(QMainWindow):
         if not user_id:
             return
 
-        balance_info = get_user_balance(
-            user_id, self.session_manager.device_fingerprint
-        )
+        try:
+            balance_info = get_user_balance(
+                user_id, self.session_manager.device_fingerprint
+            )
+        except Exception as e:
+            print(f"[MainWindow] _enforce_trial_settings error: {e}")
+            return
         if "error" in balance_info:
             return
 
@@ -2015,8 +2049,8 @@ class MainWindow(QMainWindow):
             self.model_combo.setEnabled(False)
             self.resolution_combo.setEnabled(False)
             self._add_log("🎯 Trial: Cloud API + Best Quality + 1536³ Pro enforced")
-            # Refresh cloud credit display
-            self._refresh_cloud_credit_display()
+            # Refresh cloud credit display (deferred & safe)
+            QTimer.singleShot(100, self._safe_refresh_cloud_credit_display)
 
     def _refresh_credit_balance(self):
         """Refresh the credit balance display."""
@@ -2036,9 +2070,16 @@ class MainWindow(QMainWindow):
             self.used_value.setText("-")
             return
 
-        balance_info = get_user_balance(
-            user_id, self.session_manager.device_fingerprint
-        )
+        try:
+            balance_info = get_user_balance(
+                user_id, self.session_manager.device_fingerprint
+            )
+        except Exception as e:
+            print(f"[MainWindow] _refresh_credit_balance error: {e}")
+            self.trial_value.setText("Error")
+            self.credits_value.setText("Error")
+            self.used_value.setText("Error")
+            return
 
         if "error" in balance_info:
             self.trial_value.setText("Error")
@@ -2087,9 +2128,9 @@ class MainWindow(QMainWindow):
             )
         self.used_value.setText(f"{used}")
 
-        # Also refresh cloud credit display if visible
+        # Also refresh cloud credit display if visible (deferred & safe)
         if hasattr(self, 'cloud_options_widget') and self.cloud_options_widget.isVisible():
-            self._refresh_cloud_credit_display()
+            QTimer.singleShot(50, self._safe_refresh_cloud_credit_display)
 
     def _on_buy_credits(self):
         """Open credit purchase dialog."""
@@ -2103,8 +2144,23 @@ class MainWindow(QMainWindow):
             )
             return
 
-        # Show credit purchase dialog
-        dialog = CreditPurchaseDialog(self, self.session_manager.credits)
+        # Show loading cursor while dialog loads
+        self.setCursor(Qt.WaitCursor)
+        try:
+            # Use cached credits if available, to avoid blocking call
+            cached_balance = getattr(self, '_cached_credits_balance', 0)
+            current_credits = cached_balance if cached_balance else getattr(self.session_manager, 'credits', 0)
+            dialog = CreditPurchaseDialog(self, current_credits)
+        except Exception as e:
+            print(f"[MainWindow] Buy credits dialog error: {e}")
+            self.setCursor(Qt.ArrowCursor)
+            QMessageBox.warning(
+                self, "Error", f"Could not open credit purchase dialog: {e}"
+            )
+            return
+        finally:
+            self.setCursor(Qt.ArrowCursor)
+
         dialog.exec()
 
     def _check_credit_update(self):
