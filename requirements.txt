@@ -23,11 +23,11 @@ diffusers>=0.21.0
 accelerate>=0.24.0
 transformers>=4.35.0
 rembg>=2.0.0
-  onnxruntime>=1.16.0
-  einops>=0.8.0
-  huggingface_hub>=0.20.0
-  omegaconf>=2.3.0
-  moderngl>=5.8.0
+onnxruntime>=1.16.0
+einops>=0.8.0
+huggingface_hub>=0.20.0
+omegaconf>=2.3.0
+moderngl>=5.8.0
 
 # System Utilities
 psutil>=5.9.0
