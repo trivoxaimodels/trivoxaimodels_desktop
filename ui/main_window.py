@@ -43,7 +43,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QThread, Signal, QTimer, QSize, QSettings, QUrl
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtGui import QPixmap, QFont, QDragEnterEvent, QDropEvent, QColor
+from PySide6.QtGui import QPixmap, QFont, QDragEnterEvent, QDropEvent, QColor, QFocusEvent
 
 # Add parent directory to path
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -551,6 +551,13 @@ class MainWindow(QMainWindow):
 
         # Force trial settings after window is shown
         QTimer.singleShot(100, self._enforce_trial_settings)
+
+    def focusInEvent(self, event: QFocusEvent):
+        """Refresh credits when window gains focus."""
+        super().focusInEvent(event)
+        # Refresh credits from database when window gains focus
+        self._refresh_credit_balance()
+        self._refresh_cloud_credit_display()
 
     def _setup_ui(self):
         """Setup the main window UI with sidebar + content layout."""
