@@ -120,8 +120,8 @@ class RazorpayProvider(BasePaymentProvider):
             # Create checkout link
             checkout_data = {
                 "subscription_id": subscription.get("id"),
-                "callback_url": success_url or "https://imageto3d.pro/success",
-                "cancel_url": cancel_url or "https://imageto3d.pro/cancel",
+                "callback_url": success_url or "https://trivoxaimodels-r5ip.onrender.com/success",
+                "cancel_url": cancel_url or "https://trivoxaimodels-r5ip.onrender.com/cancel",
             }
 
             # Store pending license

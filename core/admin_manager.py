@@ -65,26 +65,24 @@ class AdminModelManager:
     def toggle_model(self, model_id: str, enabled: bool) -> bool:
         """Enable or disable a cloud model (admin only)."""
         try:
-            self.client.table("cloud_model_config").update(
-                {
-                    "is_enabled": enabled,
-                    "updated_at": datetime.utcnow().isoformat(),
-                }
-            ).eq("model_id", model_id).execute()
+            self.client.table("cloud_model_config").update({
+                "is_enabled": enabled,
+                "updated_at": datetime.utcnow().isoformat(),
+            }).eq("model_id", model_id).execute()
             return True
         except Exception as e:
             logger.error(f"Failed to toggle model {model_id}: {e}")
             return False
 
-    def update_model_config(self, model_id: str, config: Dict[str, Any]) -> bool:
+    def update_model_config(
+        self, model_id: str, config: Dict[str, Any]
+    ) -> bool:
         """Update per-model configuration (admin only)."""
         try:
-            self.client.table("cloud_model_config").update(
-                {
-                    "config_json": json.dumps(config),
-                    "updated_at": datetime.utcnow().isoformat(),
-                }
-            ).eq("model_id", model_id).execute()
+            self.client.table("cloud_model_config").update({
+                "config_json": json.dumps(config),
+                "updated_at": datetime.utcnow().isoformat(),
+            }).eq("model_id", model_id).execute()
             return True
         except Exception as e:
             logger.error(f"Failed to update model config: {e}")
@@ -93,12 +91,10 @@ class AdminModelManager:
     def set_model_order(self, model_id: str, order: int) -> bool:
         """Set display order for a model."""
         try:
-            self.client.table("cloud_model_config").update(
-                {
-                    "display_order": order,
-                    "updated_at": datetime.utcnow().isoformat(),
-                }
-            ).eq("model_id", model_id).execute()
+            self.client.table("cloud_model_config").update({
+                "display_order": order,
+                "updated_at": datetime.utcnow().isoformat(),
+            }).eq("model_id", model_id).execute()
             return True
         except Exception as e:
             logger.error(f"Failed to set model order: {e}")
@@ -121,22 +117,16 @@ class AdminModelManager:
                     row["key_value_masked"] = "•" * (len(val) - 4) + val[-4:]
                 else:
                     row["key_value_masked"] = val
-                row["remaining_credits"] = (row.get("total_credits", 0) or 0) - (
-                    row.get("used_credits", 0) or 0
-                )
+                row["remaining_credits"] = (row.get("total_credits", 0) or 0) - (row.get("used_credits", 0) or 0)
             return rows
         except Exception as e:
             logger.error(f"Failed to get model API keys: {e}")
             return []
 
-    def save_model_api_key(
-        self,
-        model_id: str,
-        key_name: str,
-        key_value: str = None,
-        total_credits: int = None,
-        trial_credits: int = None,
-    ) -> bool:
+    def save_model_api_key(self, model_id: str, key_name: str,
+                           key_value: str = None,
+                           total_credits: int = None,
+                           trial_credits: int = None) -> bool:
         """Create or update an API key entry for a model."""
         try:
             update_data = {"updated_at": datetime.utcnow().isoformat()}
@@ -195,13 +185,8 @@ class AdminModelManager:
             }
         except Exception as e:
             logger.error(f"Failed to get credits for {model_id}: {e}")
-            return {
-                "model_id": model_id,
-                "total_credits": 0,
-                "used_credits": 0,
-                "remaining_credits": 0,
-                "trial_credits": 0,
-            }
+            return {"model_id": model_id, "total_credits": 0, "used_credits": 0,
+                    "remaining_credits": 0, "trial_credits": 0}
 
     def use_model_credit(self, model_id: str) -> bool:
         """Consume one credit from a model. Returns False if no credits left."""
@@ -225,12 +210,10 @@ class AdminModelManager:
             if used >= total and total > 0:
                 return False  # No credits remaining
 
-            self.client.table("model_api_keys").update(
-                {
-                    "used_credits": used + 1,
-                    "updated_at": datetime.utcnow().isoformat(),
-                }
-            ).eq("id", row["id"]).execute()
+            self.client.table("model_api_keys").update({
+                "used_credits": used + 1,
+                "updated_at": datetime.utcnow().isoformat(),
+            }).eq("id", row["id"]).execute()
             return True
         except Exception as e:
             logger.error(f"Failed to use credit for {model_id}: {e}")
@@ -316,35 +299,26 @@ class UserTracker:
     ) -> Optional[str]:
         """Log a generation event. Returns log entry ID."""
         try:
-            result = (
-                self.client.table("usage_logs")
-                .insert(
-                    {
-                        "model_id": model_id,
-                        "generation_type": generation_type,
-                        "input_type": input_type,
-                        "output_format": output_format,
-                        "quality": quality,
-                        "status": status,
-                        "error_message": error_message,
-                        "generation_time_ms": generation_time_ms,
-                        "device_fingerprint": device_fingerprint,
-                        "app_version": app_version,
-                    }
-                )
-                .execute()
-            )
+            result = self.client.table("usage_logs").insert({
+                "model_id": model_id,
+                "generation_type": generation_type,
+                "input_type": input_type,
+                "output_format": output_format,
+                "quality": quality,
+                "status": status,
+                "error_message": error_message,
+                "generation_time_ms": generation_time_ms,
+                "device_fingerprint": device_fingerprint,
+                "app_version": app_version,
+            }).execute()
             return result.data[0]["id"] if result.data else None
         except Exception as e:
             logger.error(f"Failed to log generation: {e}")
             return None
 
     def update_generation_status(
-        self,
-        log_id: str,
-        status: str,
-        generation_time_ms: int = 0,
-        error_message: str = "",
+        self, log_id: str, status: str,
+        generation_time_ms: int = 0, error_message: str = "",
     ) -> bool:
         """Update a generation log entry status."""
         try:
@@ -354,7 +328,9 @@ class UserTracker:
             if error_message:
                 update["error_message"] = error_message
 
-            self.client.table("usage_logs").update(update).eq("id", log_id).execute()
+            self.client.table("usage_logs").update(update).eq(
+                "id", log_id
+            ).execute()
 
             # Increment user's generation count
             if status == "success":
@@ -411,7 +387,6 @@ class UserTracker:
 # SALES TRACKER — Gumroad Sales Data (Admin Analytics)
 # ═══════════════════════════════════════════════════════════════════════
 
-
 class SalesTracker:
     """
     Tracks Gumroad sales data stored in Supabase.
@@ -437,15 +412,12 @@ class SalesTracker:
     ) -> List[Dict]:
         """Fetch all Gumroad sales from Supabase with optional filters."""
         try:
-            result = self.client.rpc(
-                "get_all_sales",
-                {
-                    "p_limit": limit,
-                    "p_offset": offset,
-                    "p_status": status,
-                    "p_email": email,
-                },
-            ).execute()
+            result = self.client.rpc("get_all_sales", {
+                "p_limit": limit,
+                "p_offset": offset,
+                "p_status": status,
+                "p_email": email,
+            }).execute()
             return result.data if result.data else []
         except Exception as e:
             logger.error(f"Failed to fetch sales: {e}")
@@ -480,7 +452,9 @@ class SalesTracker:
             return None
 
     # Search sales by email or license key.
-    def search_sales(self, email: str = None, license_key: str = None) -> List[Dict]:
+    def search_sales(
+        self, email: str = None, license_key: str = None
+    ) -> List[Dict]:
         """Search sales by buyer email or license key."""
         try:
             query = self.client.table("gumroad_sales").select(
@@ -503,9 +477,9 @@ class SalesTracker:
         """Deactivate a license and mark the associated sale as revoked."""
         try:
             # Deactivate in licenses table
-            self.client.table("licenses").update({"status": "revoked"}).eq(
-                "license_key", license_key
-            ).execute()
+            self.client.table("licenses").update(
+                {"status": "revoked"}
+            ).eq("license_key", license_key).execute()
 
             # Mark in gumroad_sales
             self.client.table("gumroad_sales").update(
@@ -518,12 +492,13 @@ class SalesTracker:
             logger.error(f"Failed to revoke license {license_key}: {e}")
             return False
 
+    # Reactivate a previously revoked license (admin action).
     def reactivate_license(self, license_key: str) -> bool:
         """Reactivate a revoked license."""
         try:
-            self.client.table("licenses").update({"status": "active"}).eq(
-                "license_key", license_key
-            ).execute()
+            self.client.table("licenses").update(
+                {"status": "active"}
+            ).eq("license_key", license_key).execute()
 
             self.client.table("gumroad_sales").update(
                 {"status": "active", "updated_at": datetime.utcnow().isoformat()}
@@ -551,8 +526,7 @@ class SalesTracker:
                 query = query.eq("status", status)
             if email:
                 query = query.ilike("buyer_email", f"%{email}%")
-            
-            result = query.order("created_at", desc=True).range(offset, offset + limit - 1).execute()
+            result = query.order("created_at", desc=True).limit(limit).execute()
             return result.data or []
         except Exception as e:
             logger.error(f"Failed to fetch Razorpay sales: {e}")
@@ -568,14 +542,16 @@ class SalesTracker:
                 .limit(1)
                 .execute()
             )
-            return result.data[0] if result.data else None
+            if result.data:
+                return result.data[0]
+            return None
         except Exception as e:
             logger.error(f"Failed to fetch Razorpay sale detail: {e}")
             return None
 
-    # ── Model Storage Tracking ───────────────────────────────────────
+    # ── Storage Tracking ────────────────────────────────────────
 
-    def get_storage_failed_models(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_storage_failed_models(self, limit: int = 100) -> List[Dict]:
         """
         Get all models that failed to save to database.
         """
@@ -583,7 +559,7 @@ class SalesTracker:
             result = (
                 self.client.table("user_generations")
                 .select("*")
-                .eq("storage_failed", True)
+                .eq("storage_status", "failed")
                 .order("created_at", desc=True)
                 .limit(limit)
                 .execute()
@@ -593,25 +569,26 @@ class SalesTracker:
             logger.error(f"Failed to get storage failed models: {e}")
             return []
 
-    def get_model_storage_status(self, generation_id: str) -> Dict[str, Any]:
+    def get_model_storage_status(self, generation_id: str) -> Optional[Dict]:
         """
         Get storage status for a specific generation.
         """
         try:
             result = (
                 self.client.table("user_generations")
-                .select(
-                    "id, storage_uploaded, storage_uploaded_at, storage_files, storage_failed, storage_error, storage_attempted_at, input_filename, processing_method, total_size_bytes"
-                )
+                .select("*")
                 .eq("id", generation_id)
+                .limit(1)
                 .execute()
             )
-            return result.data[0] if result.data else {}
+            if result.data:
+                return result.data[0]
+            return None
         except Exception as e:
-            logger.error(f"Failed to get storage status: {e}")
-            return {}
+            logger.error(f"Failed to get model storage status: {e}")
+            return None
 
-    # ── Admin Dashboard Overview ─────────────────────────────────────
+    # ── Admin Overview Stats ────────────────────────────────────
 
     def get_admin_overview_stats(self) -> Dict[str, Any]:
         """
@@ -622,48 +599,36 @@ class SalesTracker:
         - Storage usage estimate
         """
         try:
-            # Get all generations
-            all_gens = (
+            # Total users
+            users_result = self.client.table("web_users").select("id", count="exact").execute()
+            total_users = users_result.count if hasattr(users_result, 'count') else len(users_result.data or [])
+
+            # Total generations
+            gens_result = self.client.table("user_generations").select("id", count="exact").execute()
+            total_gens = gens_result.count if hasattr(gens_result, 'count') else len(gens_result.data or [])
+
+            # Recent activity (last 7 days)
+            from datetime import timedelta
+            week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+            recent_result = (
                 self.client.table("user_generations")
-                .select("user_id, storage_files, processing_method, created_at")
+                .select("id", count="exact")
+                .gte("created_at", week_ago)
                 .execute()
-            ).data or []
-
-            if not all_gens:
-                return {
-                    "total_users": 0,
-                    "total_generations": 0,
-                    "by_method": {},
-                    "recent_generations": [],
-                }
-
-            # Count unique users
-            unique_users = set(g["user_id"] for g in all_gens if g.get("user_id"))
-
-            # Count generations per user
-            gen_counts = {}
-            by_method = {}
-
-            for gen in all_gens:
-                user_id = gen.get("user_id", "unknown")
-                gen_counts[user_id] = gen_counts.get(user_id, 0) + 1
-
-                method = gen.get("processing_method", "cloud_api")
-                by_method[method] = by_method.get(method, 0) + 1
+            )
+            recent_gens = recent_result.count if hasattr(recent_result, 'count') else len(recent_result.data or [])
 
             return {
-                "total_users": len(unique_users),
-                "total_generations": len(all_gens),
-                "generations_per_user": gen_counts,
-                "by_method": by_method,
-                "recent_generations": all_gens[:20],
+                "total_users": total_users,
+                "total_generations": total_gens,
+                "recent_generations": recent_gens,
+                "avg_gens_per_user": round(total_gens / max(total_users, 1), 1),
             }
-
         except Exception as e:
-            logger.error(f"Failed to get admin overview: {e}")
-            return {"error": str(e)}
+            logger.error(f"Failed to get admin overview stats: {e}")
+            return {}
 
-    def get_all_user_generations(self, user_id: str) -> List[Dict[str, Any]]:
+    def get_all_user_generations(self, user_id: str) -> List[Dict]:
         """
         Get all generations for a specific user.
         """
@@ -680,50 +645,57 @@ class SalesTracker:
             logger.error(f"Failed to get user generations: {e}")
             return []
 
-    def get_user_summary(self) -> List[Dict[str, Any]]:
+    def get_user_summary(self) -> List[Dict]:
         """
         Get summary of all users with their generation counts.
         """
         try:
-            all_gens = (
-                self.client.table("user_generations")
-                .select("user_id, created_at")
+            # Get all users with credit info
+            users = (
+                self.client.table("web_users")
+                .select("id, username, email, created_at, trial_used, trial_remaining")
+                .order("created_at", desc=True)
                 .execute()
-            ).data or []
+            )
+            if not users.data:
+                return []
 
-            user_stats = {}
-            for gen in all_gens:
-                user_id = gen.get("user_id")
-                if user_id:
-                    if user_id not in user_stats:
-                        user_stats[user_id] = {
-                            "user_id": user_id,
-                            "generation_count": 0,
-                            "first_generation": gen.get("created_at"),
-                            "last_generation": gen.get("created_at"),
-                        }
-                    user_stats[user_id]["generation_count"] += 1
+            result = []
+            for user in users.data:
+                # Get credit balance
+                credits = (
+                    self.client.table("user_credits")
+                    .select("credits_balance, total_purchased, total_used")
+                    .eq("user_id", user["id"])
+                    .execute()
+                )
+                credit_info = credits.data[0] if credits.data else {}
 
-                    # Update last generation date
-                    created = gen.get("created_at")
-                    if created:
-                        if (
-                            not user_stats[user_id]["last_generation"]
-                            or created > user_stats[user_id]["last_generation"]
-                        ):
-                            user_stats[user_id]["last_generation"] = created
-                        if (
-                            not user_stats[user_id]["first_generation"]
-                            or created < user_stats[user_id]["first_generation"]
-                        ):
-                            user_stats[user_id]["first_generation"] = created
+                # Get generation count
+                gens = (
+                    self.client.table("user_generations")
+                    .select("id", count="exact")
+                    .eq("user_id", user["id"])
+                    .execute()
+                )
+                gen_count = gens.count if hasattr(gens, 'count') else len(gens.data or [])
 
-            return list(user_stats.values())
-
+                result.append({
+                    **user,
+                    "credits_balance": credit_info.get("credits_balance", 0),
+                    "total_purchased": credit_info.get("total_purchased", 0),
+                    "total_used": credit_info.get("total_used", 0),
+                    "generation_count": gen_count,
+                })
+            return result
         except Exception as e:
             logger.error(f"Failed to get user summary: {e}")
             return []
 
+
+# ═══════════════════════════════════════════════════════════════════════
+# PAYMENT GATEWAY MANAGER
+# ═══════════════════════════════════════════════════════════════════════
 
 class PaymentGatewayManager:
     """
@@ -743,10 +715,10 @@ class PaymentGatewayManager:
     def get_gateways(self) -> List[Dict[str, Any]]:
         """Get all payment gateways and their status."""
         try:
-            result = self.client.table("payment_gateways").select("*").order("display_name").execute()
+            result = self.client.table("payment_gateways").select("*").execute()
             return result.data or []
         except Exception as e:
-            logger.error(f"Failed to fetch gateways: {e}")
+            logger.error(f"Failed to get payment gateways: {e}")
             return []
 
     def toggle_gateway(self, gateway_name: str, enabled: bool) -> bool:
@@ -754,15 +726,14 @@ class PaymentGatewayManager:
         try:
             self.client.table("payment_gateways").update({
                 "is_enabled": enabled,
-                "updated_at": datetime.utcnow().isoformat()
+                "updated_at": datetime.utcnow().isoformat(),
             }).eq("gateway_name", gateway_name).execute()
-            logger.info(f"Payment gateway {gateway_name} set to enabled={enabled}")
             return True
         except Exception as e:
             logger.error(f"Failed to toggle gateway {gateway_name}: {e}")
             return False
 
-    def get_active_gateway(self) -> str:
+    def get_active_gateway(self) -> Optional[str]:
         """Get the name of currently active payment gateway."""
         try:
             result = (
@@ -774,7 +745,8 @@ class PaymentGatewayManager:
             )
             if result.data:
                 return result.data[0]["gateway_name"]
-            return "gumroad"  # Default fallback
+            return None
         except Exception as e:
             logger.error(f"Failed to get active gateway: {e}")
-            return "gumroad"
+            return None
+

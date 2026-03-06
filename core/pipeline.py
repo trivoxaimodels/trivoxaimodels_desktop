@@ -181,43 +181,29 @@ def run_pipeline(
             )
 
     t_export_start = time.perf_counter()
-
-    # Add timestamp to filename
-    timestamp = time.strftime("%Y%m%d_%H%M%S")
-    name_with_time = f"{name}_{timestamp}"
-
-    # Create format-specific subdirectories
-    format_folders = {
-        "obj": os.path.join(output_dir, "obj"),
-        "glb": os.path.join(output_dir, "glb"),
-        "stl": os.path.join(output_dir, "stl"),
-    }
-    for folder in format_folders.values():
-        os.makedirs(folder, exist_ok=True)
-
     _report("export", 93, f"Exporting 3D files (OBJ, STL, GLB) to {output_dir}...")
-    obj_path = os.path.join(format_folders["obj"], f"{name_with_time}.obj")
-    stl_path = os.path.join(format_folders["stl"], f"{name_with_time}.stl")
-    glb_path = os.path.join(format_folders["glb"], f"{name_with_time}.glb")
+    obj_path = os.path.join(output_dir, f"{name}.obj")
+    stl_path = os.path.join(output_dir, f"{name}.stl")
+    glb_path = os.path.join(output_dir, f"{name}.glb")
     if textured_assets and textured_assets.get("obj"):
         obj_src = Path(textured_assets["obj"])
         mtl_src = Path(textured_assets["mtl"]) if textured_assets.get("mtl") else None
         tex_src = (
             Path(textured_assets["texture"]) if textured_assets.get("texture") else None
         )
-        # Use timestamp-based name
-        mtl_name = f"{name_with_time}.mtl"
+        obj_path = os.path.join(output_dir, f"{name}.obj")
+        mtl_name = f"{name}.mtl"
         tex_name = tex_src.name if tex_src else None
 
-        # Copy files to OBJ subfolder (skip if same file - happens when texture gen writes to output_dir)
+        # Copy files (skip if same file - happens when texture gen writes to output_dir)
         if str(obj_src.resolve()) != str(Path(obj_path).resolve()):
             shutil.copy2(obj_src, obj_path)
         if mtl_src and mtl_src.exists():
-            mtl_path = os.path.join(format_folders["obj"], mtl_name)
+            mtl_path = os.path.join(output_dir, mtl_name)
             if str(mtl_src.resolve()) != str(Path(mtl_path).resolve()):
                 shutil.copy2(mtl_src, mtl_path)
             if tex_src and tex_src.exists():
-                tex_path = os.path.join(format_folders["obj"], tex_name)
+                tex_path = os.path.join(output_dir, tex_name)
                 if str(tex_src.resolve()) != str(Path(tex_path).resolve()):
                     shutil.copy2(tex_src, tex_path)
                 _rewrite_mtl_texture(mtl_path, tex_name)
@@ -657,7 +643,6 @@ def _rotate_mesh_by_orientation(mesh, is_horizontal: bool):
     """
     if is_horizontal:
         # Rotate -90 degrees around X axis to make mesh lie flat (like in reference image)
-        # This aligns the model's "top" to face the camera as in the input image
         angle = -np.pi / 2  # -90 degrees
         cos_a = np.cos(angle)
         sin_a = np.sin(angle)

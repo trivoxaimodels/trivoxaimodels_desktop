@@ -331,57 +331,51 @@ async def _run_api_pipeline(
 
     # Initialize API client
     from core.unified_api import Unified3DAPI, APICredentials, APIPlatform
-
+    
     # Check if credentials is a dict or string
     if isinstance(credentials, dict):
         access_token = credentials.get("access_token")
         client_id = credentials.get("client_id")
         client_secret = credentials.get("client_secret")
-
+        
         # Create credentials with proper fields
         if access_token:
             unified_credentials = APICredentials(
                 api_key=access_token,
                 access_token=access_token,
-                platform=APIPlatform.TRIPO3D,
+                platform=APIPlatform.TRIPO3D
             )
         elif client_id and client_secret:
             unified_credentials = APICredentials(
                 api_key=f"{client_id}:{client_secret}",
                 client_id=client_id,
                 client_secret=client_secret,
-                platform=APIPlatform.HITEM3D,
+                platform=APIPlatform.HITEM3D
             )
         else:
             api_token_val = credentials.get("access_token", "")
-            if (
-                not api_token_val
-                and credentials.get("client_id")
-                and credentials.get("client_secret")
-            ):
-                api_token_val = (
-                    f"{credentials['client_id']}:{credentials['client_secret']}"
-                )
+            if not api_token_val and credentials.get("client_id") and credentials.get("client_secret"):
+                api_token_val = f"{credentials['client_id']}:{credentials['client_secret']}"
             unified_credentials = APICredentials(api_key=api_token_val)
     else:
         api_token_val = str(credentials)
         unified_credentials = APICredentials(api_key=api_token_val)
-
+        
     api = Unified3DAPI(credentials=unified_credentials)
 
     try:
         # Generate 3D model using API
         output_dir = str(get_output_dir())
-
+        
         # Format quality
         quality_map = {
             "2048": "production",
             "1024": "high",
             "512": "standard",
-            "256": "draft",
+            "256": "draft"
         }
         quality = quality_map.get(api_resolution, "standard")
-
+        
         gen_result = await api.generate_from_image(
             image_path=image_path,
             output_dir=output_dir,
@@ -390,8 +384,9 @@ async def _run_api_pipeline(
             format_type="glb",  # Request GLB initially for best mesh quality
             progress_callback=wrapped_callback,
             model_id=api_model,
+            api_resolution=api_resolution
         )
-
+        
         if not gen_result.success:
             raise Exception(gen_result.error_message)
 
@@ -403,21 +398,11 @@ async def _run_api_pipeline(
 
         glb_path = gen_result.model_path
         if glb_path and os.path.exists(glb_path):
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            base_name = f"{name}_{timestamp}"
+            base_name = name
 
             try:
                 # Load the mesh
                 mesh = trimesh.load(glb_path, process=False)
-
-                # Create format-specific subdirectories
-                format_folders = {
-                    "obj": os.path.join(output_dir, "obj"),
-                    "glb": os.path.join(output_dir, "glb"),
-                    "stl": os.path.join(output_dir, "stl"),
-                }
-                for folder in format_folders.values():
-                    os.makedirs(folder, exist_ok=True)
 
                 # Export to all formats
                 formats_to_export = ["obj", "glb", "stl"]
@@ -427,9 +412,7 @@ async def _run_api_pipeline(
                         exported_count += 1
                         continue
 
-                    output_path = os.path.join(
-                        format_folders[fmt], f"{base_name}.{fmt}"
-                    )
+                    output_path = os.path.join(output_dir, f"{base_name}.{fmt}")
                     try:
                         if isinstance(mesh, trimesh.Scene):
                             # For scenes, try to export the first mesh
@@ -447,16 +430,6 @@ async def _run_api_pipeline(
 
                 if wrapped_callback:
                     wrapped_callback(98, f"Exported {exported_count} formats")
-
-                # Also copy the original GLB to the glb subfolder with timestamp
-                glb_output_path = os.path.join(
-                    format_folders["glb"], f"{base_name}.glb"
-                )
-                if glb_path != glb_output_path:
-                    import shutil
-
-                    shutil.copy2(glb_path, glb_output_path)
-                result["glb"] = glb_output_path
 
             except Exception as e:
                 print(f"[API Pipeline] Format conversion failed: {e}")
@@ -478,7 +451,7 @@ async def _run_api_pipeline(
         return result
 
     finally:
-        pass  # Unified3DAPI doesn't need to be closed explicitly in this context
+        pass # Unified3DAPI doesn't need to be closed explicitly in this context
 
 
 def get_available_models(api_token: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
@@ -648,8 +621,8 @@ def save_api_credentials(api_token: str) -> Dict[str, Optional[str]]:
 
         if os.name == "nt":
             appdata = os.environ.get("APPDATA", os.path.expanduser("~"))
-            return Path(appdata) / "TrivoxModels"
-        return Path(os.path.expanduser("~")) / ".imageto3dpro"
+            return Path(appdata) / "trivoxaimodels"
+        return Path(os.path.expanduser("~")) / ".trivoxaimodels"
 
     config_dir = get_user_data_dir() / "config"
     config_dir.mkdir(parents=True, exist_ok=True)
@@ -717,39 +690,26 @@ def resolve_hitem3d_credentials(api_token: Optional[str]) -> Dict[str, Optional[
     if not (access_token or (client_id and client_secret)):
         try:
             from core.supabase_client import get_supabase_client
-
             sb = get_supabase_client()
             if sb:
-                # Try Hitem3D keys first (usually more reliable with trial credits)
-                result = (
-                    sb.table("model_api_keys")
-                    .select("key_name, key_value")
-                    .eq("model_id", "hitem3d")
-                    .eq("is_active", True)
-                    .execute()
-                )
+                # Try Tripo3D key first
+                result = sb.table("model_api_keys").select("key_value").eq(
+                    "key_name", "TRIPO_API_KEY"
+                ).eq("is_active", True).limit(1).execute()
                 rows = result.data or []
-                for r in rows:
-                    if r.get("key_name") == "HITEM3D_CLIENT_ID" and r.get("key_value"):
-                        client_id = r["key_value"]
-                    elif r.get("key_name") == "HITEM3D_CLIENT_SECRET" and r.get(
-                        "key_value"
-                    ):
-                        client_secret = r["key_value"]
-
-                # Only try Tripo3D if HItem3D credentials not available
-                if not (client_id and client_secret):
-                    result = (
-                        sb.table("model_api_keys")
-                        .select("key_value")
-                        .eq("key_name", "TRIPO_API_KEY")
-                        .eq("is_active", True)
-                        .limit(1)
-                        .execute()
-                    )
+                if rows and rows[0].get("key_value"):
+                    access_token = rows[0]["key_value"]
+                else:
+                    # Try Hitem3D keys
+                    result = sb.table("model_api_keys").select("key_name, key_value").eq(
+                        "model_id", "hitem3d"
+                    ).eq("is_active", True).execute()
                     rows = result.data or []
-                    if rows and rows[0].get("key_value"):
-                        access_token = rows[0]["key_value"]
+                    for r in rows:
+                        if r.get("key_name") == "HITEM3D_CLIENT_ID" and r.get("key_value"):
+                            client_id = r["key_value"]
+                        elif r.get("key_name") == "HITEM3D_CLIENT_SECRET" and r.get("key_value"):
+                            client_secret = r["key_value"]
         except Exception:
             pass
 
@@ -759,8 +719,8 @@ def resolve_hitem3d_credentials(api_token: Optional[str]) -> Dict[str, Optional[
 
         if os.name == "nt":
             appdata = os.environ.get("APPDATA", os.path.expanduser("~"))
-            return Path(appdata) / "TrivoxModels"
-        return Path(os.path.expanduser("~")) / ".imageto3dpro"
+            return Path(appdata) / "trivoxaimodels"
+        return Path(os.path.expanduser("~")) / ".trivoxaimodels"
 
     config_dir = get_user_data_dir() / "config"
 
@@ -833,8 +793,8 @@ def load_saved_api_credentials() -> Optional[Dict[str, Any]]:
 
         if os.name == "nt":
             appdata = os.environ.get("APPDATA", os.path.expanduser("~"))
-            return Path(appdata) / "TrivoxModels"
-        return Path(os.path.expanduser("~")) / ".imageto3dpro"
+            return Path(appdata) / "trivoxaimodels"
+        return Path(os.path.expanduser("~")) / ".trivoxaimodels"
 
     config_dir = get_user_data_dir() / "config"
     creds_file = config_dir / "api_credentials.json"

@@ -154,8 +154,8 @@ class PricingConfig:
 class GumroadConfig:
     """Gumroad-specific configuration."""
 
-    app_name: str = "ImageTo3D Pro"
-    app_url: str = "https://imageto3d.pro"
+    app_name: str = "Trivox AI Models"
+    app_url: str = "https://trivoxaimodels-r5ip.onrender.com"
 
     # Get these from Gumroad Settings > Advanced > Application
     access_token: Optional[str] = None  # GUMROAD_ACCESS_TOKEN env var

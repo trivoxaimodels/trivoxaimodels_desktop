@@ -67,9 +67,9 @@ class SessionManager:
         """Get the path to store local session data."""
         appdata = os.environ.get("APPDATA")
         if appdata:
-            base_dir = Path(appdata) / "TrivoxModels"
+            base_dir = Path(appdata) / "trivoxaimodels"
         else:
-            base_dir = Path.home() / ".trivoxmodels"
+            base_dir = Path.home() / ".trivoxaimodels"
         
         base_dir.mkdir(parents=True, exist_ok=True)
         return base_dir / "session.json"

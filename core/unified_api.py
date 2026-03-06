@@ -56,13 +56,25 @@ class APICredentials:
                     platform=APIPlatform.HITEM3D,
                 )
 
-        # Check for Tripo3D format (starts with specific prefixes)
-        # Tripo3D keys are typically longer and don't contain colons
-        if len(cred_str) > 20 and not ":" in cred_str:
+        # Check for Tripo3D format (starts with 'tsk_')
+        if cred_str.startswith("tsk_"):
             return cls(api_key=cred_str, platform=APIPlatform.TRIPO3D)
 
-        # Try as generic API key for Tripo3D
-        return cls(api_key=cred_str, platform=APIPlatform.TRIPO3D)
+        # Check for Meshy AI format (starts with 'msy_' or typical length)
+        if cred_str.startswith("msy_") or len(cred_str) == 64:
+            # Meshy AI keys are typically 64 characters or start with msy_
+            return cls(api_key=cred_str, platform=APIPlatform.MESHY_AI)
+
+        # Check for Neural4D format (starts with 'neural_' or 'n4d_')
+        if cred_str.startswith(("neural_", "n4d_")):
+            return cls(api_key=cred_str, platform=APIPlatform.NEURAL4D)
+
+        # Default: Try as generic API key for Tripo3D (most common)
+        # If key is long enough, assume it's a cloud API key
+        if len(cred_str) > 20:
+            return cls(api_key=cred_str, platform=APIPlatform.TRIPO3D)
+
+        return cls(platform=APIPlatform.NONE)
 
     def is_valid(self) -> bool:
         """Check if credentials are valid for any platform."""
@@ -220,7 +232,57 @@ class Unified3DAPI:
             except Exception as e:
                 print(f"[API] Tripo3D validation failed: {e}")
 
-        # Priority 2: Hitem3D (fallback)
+        # Priority 2: Meshy AI (supports text-to-3D)
+        if self.credentials.api_key:
+            try:
+                from core.meshy_ai_client import MeshyAIClient
+                import os
+
+                api_key = (
+                    self.credentials.api_key
+                    or os.getenv("MESHY_API_KEY")
+                    or os.getenv("API_KEY")
+                )
+
+                if api_key:
+                    print(f"[API] Testing Meshy AI connection...")
+                    client = MeshyAIClient(api_key=api_key)
+                    # Meshy AI doesn't have a direct balance endpoint, but we can validate the key works
+                    # by checking if we can initialize the client
+                    self._primary_platform = APIPlatform.MESHY_AI
+                    print("[API] Using platform: Meshy AI")
+                    return APIPlatform.MESHY_AI
+            except ImportError as e:
+                print(f"[API] Meshy AI module not installed: {e}")
+            except Exception as e:
+                print(f"[API] Meshy AI validation failed: {e}")
+
+        # Priority 3: Neural4D (supports text-to-3D)
+        if self.credentials.api_key:
+            try:
+                from core.neural4d_client import Neural4DClient
+                import os
+
+                api_key = (
+                    self.credentials.api_key
+                    or os.getenv("NEURAL4D_API_TOKEN")
+                    or os.getenv("API_KEY")
+                )
+
+                if api_key:
+                    print(f"[API] Testing Neural4D connection...")
+                    client = Neural4DClient(api_token=api_key)
+                    balance = await client.get_balance()
+                    print(f"[API] Neural4D balance check successful: {balance}")
+                    self._primary_platform = APIPlatform.NEURAL4D
+                    print("[API] Using platform: Neural4D")
+                    return APIPlatform.NEURAL4D
+            except ImportError as e:
+                print(f"[API] Neural4D module not installed: {e}")
+            except Exception as e:
+                print(f"[API] Neural4D validation failed: {e}")
+
+        # Priority 4: Hitem3D (fallback - image-to-3D only)
         if (
             self.credentials.platform == APIPlatform.HITEM3D
             and self.credentials.is_valid()
@@ -276,6 +338,7 @@ class Unified3DAPI:
         progress_callback=None,
         max_wait_time: int = 3600,
         model_id: str = None,
+        api_resolution: str = None,
     ) -> GenerationResult:
         """
         Generate 3D model from image using best available platform.
@@ -349,6 +412,8 @@ class Unified3DAPI:
                     progress_callback=progress_callback,
                     max_wait_time=max_wait_time,
                     platform_display=platform_display,
+                    hitem3d_model=model_id,
+                    hitem3d_resolution=api_resolution,
                 )
             elif platform == APIPlatform.MESHY_AI:
                 return await self._generate_with_meshy_ai(
@@ -494,6 +559,8 @@ class Unified3DAPI:
         progress_callback,
         max_wait_time: int,
         platform_display: str,
+        hitem3d_model: str = None,
+        hitem3d_resolution: str = None,
     ) -> GenerationResult:
         """Generate using Cloud API."""
         client = await self._get_hitem3d_client()
@@ -504,14 +571,22 @@ class Unified3DAPI:
         format_map = {"obj": 1, "glb": 2, "stl": 3, "fbx": 4, "usdz": 5}
         format_code = format_map.get(format_type.lower(), 2)
 
+        # Prepare generation kwargs
+        gen_kwargs = {
+            "image_path": image_path,
+            "output_dir": output_dir,
+            "model_name": model_name,
+            "format_type": format_code,
+            "progress_callback": progress_callback,
+        }
+        
+        if hitem3d_model:
+            gen_kwargs["model"] = hitem3d_model
+        if hitem3d_resolution:
+            gen_kwargs["resolution"] = hitem3d_resolution
+
         # Generate using existing Hitem3D implementation
-        result = await client.generate_3d_model(
-            image_path=image_path,
-            output_dir=output_dir,
-            model_name=model_name,
-            format_type=format_code,
-            progress_callback=progress_callback,
-        )
+        result = await client.generate_3d_model(**gen_kwargs)
 
         # Find the model file
         model_file = None
@@ -690,6 +765,7 @@ class Unified3DAPI:
         output_dir: str = None,
         model_name: str = "model",
         format_type: str = "glb",
+        api_quality: str = None,
         progress_callback=None,
         max_wait_time: int = 3600,
         platform: str = None,
@@ -705,6 +781,7 @@ class Unified3DAPI:
             output_dir: Directory to save output (default: user Documents folder)
             model_name: Base name for output file
             format_type: Output format (obj, glb, stl, fbx, usdz)
+            api_quality: Quality/resolution (e.g., '512', '1024', '2048')
             progress_callback: Optional callback(percent, message)
             max_wait_time: Maximum time to wait for generation
             platform: Optional platform override ('tripo3d', 'meshy_ai', 'neural4d')
@@ -759,9 +836,32 @@ class Unified3DAPI:
                 if progress_callback:
                     progress_callback(5, "Initializing Tripo3D...")
 
+                # Use best available Tripo3D model (V2_5 is the latest)
+                from core.tripo3d_client import ModelVersion, OutputFormat
+                model_version = ModelVersion.V2_5  # Always use best model
+
+                # Map api_quality to texture_resolution
+                try:
+                    texture_resolution = int(api_quality) if api_quality else 1024
+                except (ValueError, TypeError):
+                    texture_resolution = 1024
+
+                # Map format_type to OutputFormat
+                format_map = {
+                    "obj": OutputFormat.OBJ,
+                    "glb": OutputFormat.GLB,
+                    "stl": OutputFormat.STL,
+                    "fbx": OutputFormat.FBX,
+                    "usdz": OutputFormat.USDZ,
+                }
+                output_format = format_map.get(format_type.lower(), OutputFormat.GLB)
+
                 result = await client.text_to_model(
                     prompt=prompt,
                     negative_prompt=negative_prompt,
+                    model_version=model_version,
+                    texture_resolution=texture_resolution,
+                    output_format=output_format,
                     progress_callback=progress_callback,
                 )
 
@@ -809,10 +909,14 @@ class Unified3DAPI:
                 if progress_callback:
                     progress_callback(5, "Initializing Meshy AI...")
 
+                # Use best Meshy AI model (latest)
+                ai_model = "latest"
+
                 # Meshy AI text-to-3D is a two-step process: preview then refine
                 preview_task_id = await client.create_text_to_3d_preview(
                     prompt=prompt,
                     negative_prompt=negative_prompt,
+                    ai_model=ai_model,
                 )
 
                 if progress_callback:

@@ -1,5 +1,5 @@
 """
-Centralized Configuration Module for ImageTo3D Pro
+Centralized Configuration Module for Trivox AI Models
 
 This module provides centralized configuration management with validation,
 type safety, and environment variable support.
@@ -53,7 +53,7 @@ class APIConfig:
 class UIConfig:
     """Configuration for UI behavior and appearance."""
 
-    app_name: str = "Image → 3D Pro"
+    app_name: str = "Trivox AI Models"
     app_version: str = "1.0.0"
     min_window_size: tuple = (720, 560)
     system_refresh_interval_ms: int = 3000
@@ -109,15 +109,15 @@ class ConfigManager:
                 pass
 
         # UI Configuration
-        if os.getenv("IMAGETO3D_UPDATE_URL"):
+        if os.getenv("TRIVOXAI_UPDATE_URL"):
             object.__setattr__(
-                self._ui, "update_url", os.getenv("IMAGETO3D_UPDATE_URL")
+                self._ui, "update_url", os.getenv("TRIVOXAI_UPDATE_URL")
             )
 
         # Processing Configuration
-        if os.getenv("IMAGETO3D_MIN_RAM"):
+        if os.getenv("TRIVOXAI_MIN_RAM"):
             try:
-                min_ram = float(os.getenv("IMAGETO3D_MIN_RAM"))
+                min_ram = float(os.getenv("TRIVOXAI_MIN_RAM"))
                 object.__setattr__(self._processing, "local_min_ram_gb", min_ram)
             except ValueError:
                 pass
@@ -181,7 +181,7 @@ def get_output_dir() -> Path:
     Returns:
         Path to the output directory (created if it doesn't exist)
     """
-    env_dir = os.getenv("IMAGETO3D_OUTPUT_DIR")
+    env_dir = os.getenv("TRIVOXAI_OUTPUT_DIR") or os.getenv("IMAGETO3D_OUTPUT_DIR")
     if env_dir:
         output_dir = Path(env_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -197,7 +197,7 @@ def get_output_dir() -> Path:
     if not docs_path.exists():
         docs_path = Path.home()
 
-    output_dir = docs_path / "ImageTo3D_Pro_Output"
+    output_dir = docs_path / "TrivoxAI_Models_Output"
 
     # Create the directory if it doesn't exist
     try:
@@ -206,7 +206,7 @@ def get_output_dir() -> Path:
         # Fallback to a temp directory if Documents is not writable
         import tempfile
 
-        output_dir = Path(tempfile.gettempdir()) / "ImageTo3D_Pro_Output"
+        output_dir = Path(tempfile.gettempdir()) / "TrivoxAI_Models_Output"
         output_dir.mkdir(parents=True, exist_ok=True)
 
     return output_dir

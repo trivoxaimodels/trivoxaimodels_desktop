@@ -1,7 +1,6 @@
 """
-Supabase Client for TrivoxModels Desktop
+Supabase Client for Trivox AI Models
 
-Mirrors the web app (ImageTo3DPro) supabase_client.py exactly.
 Provides connection to Supabase for:
   - Device registration and authentication
   - User profile management
@@ -21,17 +20,17 @@ try:
     # 1. Next to the source file (development)
     _candidates.append(Path(__file__).resolve().parent.parent / ".env")
     # 2. Next to the executable (PyInstaller frozen)
-    if getattr(sys, "frozen", False):
+    if getattr(sys, 'frozen', False):
         _exe_dir = Path(sys.executable).resolve().parent
         _candidates.append(_exe_dir / ".env")
         # 3. PyInstaller _MEIPASS temp dir
-        _meipass = getattr(sys, "_MEIPASS", None)
+        _meipass = getattr(sys, '_MEIPASS', None)
         if _meipass:
             _candidates.append(Path(_meipass) / ".env")
         # 4. User data directory (Windows AppData)
         _appdata = os.environ.get("APPDATA", "")
         if _appdata:
-            _candidates.append(Path(_appdata) / "TrivoxModels" / ".env")
+            _candidates.append(Path(_appdata) / "trivoxaimodels" / ".env")
 
     for _env_path in _candidates:
         if _env_path.exists():
@@ -62,16 +61,16 @@ class SupabaseClient:
             url = os.environ.get("SUPABASE_URL")
             # Use service_role key (same as web app) — desktop is a trusted binary
             key = os.environ.get("SUPABASE_KEY") or os.environ.get("SUPABASE_ANON_KEY")
-
+            
+            if not url or not key:
+                # In development/frozen app, these should be loaded from .env or compiled configuration
+                # If running frozen, os.environ might not have them if not passed, but we'll assume .env loader runs first
+                pass
+            
             if url and key:
                 cls._client = create_client(url, key)
-
+            
         return cls._client
-
-
-# Helper to easily get client
-def get_supabase() -> Client:
-    return SupabaseClient.get_client()
 
 
 class SupabaseAuth:
@@ -110,6 +109,10 @@ class SupabaseAuth:
 
 # Default instances for backward compatibility with UI
 auth = SupabaseAuth()
+
+# Helper to easily get client
+def get_supabase() -> Client:
+    return SupabaseClient.get_client()
 
 # Aliases for compatibility
 get_supabase_client = get_supabase

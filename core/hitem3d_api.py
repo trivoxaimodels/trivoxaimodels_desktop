@@ -219,27 +219,43 @@ class Hitem3DAPI:
         Returns:
             Path to the downloaded file
         """
-        response = await self.client.get(download_url, follow_redirects=True)
-
-        if response.status_code != 200:
-            raise Exception(f"Download failed: {response.status_code}")
-        content = response.content
+        # Ensure directory exists
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        if content[:4] == b"PK\x03\x04":
-            with zipfile.ZipFile(io.BytesIO(content)) as zf:
-                ext = os.path.splitext(output_path)[1].lower()
-                names = [n for n in zf.namelist() if not n.endswith("/")]
-                preferred = [n for n in names if ext and n.lower().endswith(ext)]
-                target = preferred[0] if preferred else (names[0] if names else None)
-                if not target:
-                    raise Exception("Download failed: empty zip archive")
-                data = zf.read(target)
-            with open(output_path, "wb") as f:
-                f.write(data)
-            return output_path
-        with open(output_path, "wb") as f:
-            f.write(content)
-        return output_path
+
+        for attempt in range(3):
+            try:
+                # Use a FRESH client for the download to avoid SSL session reuse failures
+                # that happen after long polling periods
+                async with httpx.AsyncClient(timeout=300.0) as fresh_client:
+                    response = await fresh_client.get(download_url, follow_redirects=True)
+                    response.raise_for_status()
+
+                    content = response.content
+                    if content[:4] == b"PK\x03\x04":
+                        with zipfile.ZipFile(io.BytesIO(content)) as zf:
+                            ext = os.path.splitext(output_path)[1].lower()
+                            names = [n for n in zf.namelist() if not n.endswith("/")]
+                            preferred = [n for n in names if ext and n.lower().endswith(ext)]
+                            target = preferred[0] if preferred else (names[0] if names else None)
+                            if not target:
+                                raise Exception("Download failed: empty zip archive")
+                            data = zf.read(target)
+                        with open(output_path, "wb") as f:
+                            f.write(data)
+                        return output_path
+                        
+                    with open(output_path, "wb") as f:
+                        f.write(content)
+                    return output_path
+
+            except httpx.HTTPError as e:
+                if attempt == 2:
+                    raise Exception(f"Failed to download model after 3 attempts: {str(e)}")
+                await asyncio.sleep(2 ** attempt)  # Exponential backoff
+            except Exception as e:
+                if attempt == 2:
+                    raise Exception(f"Failed to download model due to unexpected error: {str(e)}")
+                await asyncio.sleep(2 ** attempt)
 
     async def wait_for_completion(
         self,

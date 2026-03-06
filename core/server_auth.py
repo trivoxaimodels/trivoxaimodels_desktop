@@ -30,8 +30,8 @@ def _get_config_dir() -> Path:
     """Get user-writable config directory."""
     if os.name == "nt":
         appdata = os.environ.get("APPDATA", os.path.expanduser("~"))
-        return Path(appdata) / "TrivoxModels" / "config"
-    return Path(os.path.expanduser("~")) / ".TrivoxModels" / "config"
+        return Path(appdata) / "trivoxaimodels" / "config"
+    return Path(os.path.expanduser("~")) / ".trivoxaimodels" / "config"
 
 
 def _get_local_cache_file() -> Path:
