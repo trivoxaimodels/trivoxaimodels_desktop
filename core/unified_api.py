@@ -716,12 +716,12 @@ class Unified3DAPI:
                 if client:
                     try:
                         balance = await client.get_balance()
-                        print(f"[API] Hitem3D balance response: {balance}")
+                        print(f"[API] Cloud API response: {balance}")
                         if isinstance(balance, dict):
                             return balance.get("balance")
                         return balance
                     except Exception as e:
-                        print(f"[API] Hitem3D balance error: {e}")
+                        print(f"[API] Cloud API error: {e}")
 
             # Fallback: if Tripo3D module not available, try Hitem3D with the same credentials
             if platform == APIPlatform.TRIPO3D:

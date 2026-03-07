@@ -43,7 +43,14 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QThread, Signal, QTimer, QSize, QSettings, QUrl
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtGui import QPixmap, QFont, QDragEnterEvent, QDropEvent, QColor, QFocusEvent
+from PySide6.QtGui import (
+    QPixmap,
+    QFont,
+    QDragEnterEvent,
+    QDropEvent,
+    QColor,
+    QFocusEvent,
+)
 
 # Add parent directory to path
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -111,7 +118,9 @@ class CompletionDialog(QDialog):
         # ── Celebration Emoji ──
         emoji = QLabel("🎉")
         emoji.setAlignment(Qt.AlignCenter)
-        emoji.setStyleSheet("font-size: 52px; background: transparent; margin-bottom: 8px;")
+        emoji.setStyleSheet(
+            "font-size: 52px; background: transparent; margin-bottom: 8px;"
+        )
         layout.addWidget(emoji)
 
         # ── Title ──
@@ -131,9 +140,13 @@ class CompletionDialog(QDialog):
 
         # ── Subtitle ──
         if self.is_trial:
-            subtitle_text = "Your first 3D model is FREE! Select a format below to open or save it."
+            subtitle_text = (
+                "Your first 3D model is FREE! Select a format below to open or save it."
+            )
         else:
-            subtitle_text = "Your 3D model is ready. Select a format below to open or download it."
+            subtitle_text = (
+                "Your 3D model is ready. Select a format below to open or download it."
+            )
         subtitle = QLabel(subtitle_text)
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setWordWrap(True)
@@ -163,8 +176,7 @@ class CompletionDialog(QDialog):
             if self.result.get(fmt_key):
                 has_formats = True
                 card = self._create_format_card(
-                    fmt_key, fmt_label, fmt_icon, fmt_color,
-                    self.result[fmt_key]
+                    fmt_key, fmt_label, fmt_icon, fmt_color, self.result[fmt_key]
                 )
                 cards_layout.addWidget(card)
 
@@ -173,7 +185,9 @@ class CompletionDialog(QDialog):
         else:
             no_files = QLabel("No output files generated.")
             no_files.setAlignment(Qt.AlignCenter)
-            no_files.setStyleSheet("color: #64748b; font-size: 13px; background: transparent; margin: 16px 0;")
+            no_files.setStyleSheet(
+                "color: #64748b; font-size: 13px; background: transparent; margin: 16px 0;"
+            )
             layout.addWidget(no_files)
 
         # ── Spacer ──
@@ -310,7 +324,9 @@ class CompletionDialog(QDialog):
         filename = Path(file_path).name if file_path else "—"
         file_lbl = QLabel(filename)
         file_lbl.setAlignment(Qt.AlignCenter)
-        file_lbl.setStyleSheet("font-size: 10px; color: #64748b; background: transparent;")
+        file_lbl.setStyleSheet(
+            "font-size: 10px; color: #64748b; background: transparent;"
+        )
         file_lbl.setToolTip(filename)
         file_lbl.setMaximumWidth(140)
         layout.addWidget(file_lbl)
@@ -364,6 +380,7 @@ class CompletionDialog(QDialog):
     def _open_file(self, file_path):
         """Open file with system default application."""
         import subprocess
+
         try:
             if os.name == "nt":
                 os.startfile(file_path)
@@ -377,6 +394,7 @@ class CompletionDialog(QDialog):
     def _save_file(self, source_path, fmt_label):
         """Save file to user-chosen location."""
         import shutil
+
         default_name = Path(source_path).name
         ext = Path(source_path).suffix
         file_path, _ = QFileDialog.getSaveFileName(
@@ -397,6 +415,7 @@ class CompletionDialog(QDialog):
     def _open_output_folder(self):
         """Open the output folder and close the dialog."""
         import subprocess
+
         # Find output directory from any result path
         for fmt in ["obj", "glb", "stl", "fbx", "usdz"]:
             if self.result.get(fmt):
@@ -412,7 +431,7 @@ class CompletionDialog(QDialog):
         """Open buy credits dialog."""
         self.accept()
         parent = self.parent()
-        if hasattr(parent, '_on_buy_credits'):
+        if hasattr(parent, "_on_buy_credits"):
             parent._on_buy_credits()
 
 
@@ -426,20 +445,24 @@ class GenerationWorker(QThread):
 
     def __init__(
         self,
-        image_path: str,
-        model: str,
-        resolution: str,
+        input_data: str,  # image_path or prompt
+        model: str,  # "local" or "cloud"
+        resolution: str,  # e.g., "1024", "1536", "1536pro"
         api_model: str = None,
         output_formats: list = None,
         quality: str = "standard",
+        mode: str = "image",  # "image" or "text"
+        negative_prompt: str = "",
     ):
         super().__init__()
-        self.image_path = image_path
-        self.model = model  # "local" or "cloud"
-        self.resolution = resolution  # e.g., "1024", "1536", "1536pro"
-        self.api_model = api_model  # e.g., "hitem3dv1.5", "scene-portraitv2.1"
+        self.input_data = input_data
+        self.model = model
+        self.resolution = resolution
+        self.api_model = api_model
         self.output_formats = output_formats or ["obj", "stl", "glb"]
         self.quality = quality
+        self.mode = mode
+        self.negative_prompt = negative_prompt
         self._is_running = True
 
     def run(self):
@@ -461,13 +484,30 @@ class GenerationWorker(QThread):
                 self.status.emit(msg)
 
             self.progress.emit(5)
-            self.status.emit("Processing image...")
+            if self.mode == "text":
+                self.status.emit("Starting text-to-3D...")
+            else:
+                self.status.emit("Processing image...")
 
             # Run the pipeline
-            if use_api:
+            if self.mode == "text":
+                from core.unified_pipeline import run_text_pipeline_async
+
+                result = asyncio.run(
+                    run_text_pipeline_async(
+                        self.input_data,
+                        negative_prompt=self.negative_prompt,
+                        api_model=self.api_model,
+                        api_resolution=self.resolution,
+                        api_format=",".join(self.output_formats),
+                        output_dir=output_dir,
+                        progress_callback=progress_callback,
+                    )
+                )
+            elif use_api:
                 result = asyncio.run(
                     run_pipeline_async(
-                        self.image_path,
+                        self.input_data,
                         use_api=True,
                         api_model=self.api_model,
                         api_resolution=self.resolution,
@@ -480,7 +520,7 @@ class GenerationWorker(QThread):
             else:
                 result = asyncio.run(
                     run_pipeline_async(
-                        self.image_path,
+                        self.input_data,
                         use_api=False,
                         output_dir=output_dir,
                         quality=self.quality,
@@ -912,6 +952,28 @@ class MainWindow(QMainWindow):
         file_layout.addWidget(self.browse_btn)
 
         layout.addLayout(file_layout)
+
+        # Text Selection (Prompt)
+        self.text_container = QWidget()
+        self.text_container.setVisible(False)
+        text_layout = QVBoxLayout(self.text_container)
+        text_layout.setContentsMargins(0, 0, 0, 0)
+        text_layout.setSpacing(8)
+
+        self.prompt_input = QPlainTextEdit()
+        self.prompt_input.setPlaceholderText(
+            "Describe the 3D model...\ne.g., 'a red sports car' or 'a medieval castle'"
+        )
+        self.prompt_input.setObjectName("promptInput")
+        self.prompt_input.setMaximumHeight(80)
+        text_layout.addWidget(self.prompt_input)
+
+        self.negative_prompt = QLineEdit()
+        self.negative_prompt.setPlaceholderText("Negative prompt (optional)")
+        self.negative_prompt.setObjectName("fileInput")  # Reuse styling
+        text_layout.addWidget(self.negative_prompt)
+
+        layout.addWidget(self.text_container)
         layout.addStretch()
 
         return group
@@ -1049,7 +1111,9 @@ class MainWindow(QMainWindow):
 
         credit_header_layout = QHBoxLayout()
         credit_header_label = QLabel("💰 Your Credits")
-        credit_header_label.setStyleSheet("color: #94a3b8; font-size: 12px; font-weight: 600; background: transparent;")
+        credit_header_label.setStyleSheet(
+            "color: #94a3b8; font-size: 12px; font-weight: 600; background: transparent;"
+        )
         credit_header_layout.addWidget(credit_header_label)
         credit_header_layout.addStretch()
 
@@ -1074,7 +1138,9 @@ class MainWindow(QMainWindow):
         credit_box_layout.addLayout(credit_header_layout)
 
         self.cloud_credit_value = QLabel("Loading...")
-        self.cloud_credit_value.setStyleSheet("color: #a7f3d0; font-size: 16px; font-weight: 700; background: transparent;")
+        self.cloud_credit_value.setStyleSheet(
+            "color: #a7f3d0; font-size: 16px; font-weight: 700; background: transparent;"
+        )
         credit_box_layout.addWidget(self.cloud_credit_value)
 
         credit_row.addWidget(credit_box, 2)
@@ -1094,11 +1160,15 @@ class MainWindow(QMainWindow):
         cost_box_layout.setContentsMargins(10, 8, 10, 8)
 
         cost_label = QLabel("⚡ This Generation")
-        cost_label.setStyleSheet("color: #94a3b8; font-size: 12px; font-weight: 600; background: transparent;")
+        cost_label.setStyleSheet(
+            "color: #94a3b8; font-size: 12px; font-weight: 600; background: transparent;"
+        )
         cost_box_layout.addWidget(cost_label)
 
         self.cloud_cost_value = QLabel("Select resolution to see cost")
-        self.cloud_cost_value.setStyleSheet("color: #cbd5e1; font-size: 12px; font-weight: 500; background: transparent;")
+        self.cloud_cost_value.setStyleSheet(
+            "color: #cbd5e1; font-size: 12px; font-weight: 500; background: transparent;"
+        )
         self.cloud_cost_value.setWordWrap(True)
         cost_box_layout.addWidget(self.cloud_cost_value)
 
@@ -1133,7 +1203,9 @@ class MainWindow(QMainWindow):
         # Resolution
         res_container = QVBoxLayout()
         resolution_label = QLabel("Resolution")
-        resolution_label.setStyleSheet("color: #94a3b8; font-size: 13px; font-weight: 600;")
+        resolution_label.setStyleSheet(
+            "color: #94a3b8; font-size: 13px; font-weight: 600;"
+        )
         res_container.addWidget(resolution_label)
 
         self.resolution_combo = QComboBox()
@@ -1159,7 +1231,13 @@ class MainWindow(QMainWindow):
 
         self.format_combo = QComboBox()
         self.format_combo.setObjectName("formatCombo")
-        for fmt_val, fmt_name in [("obj", "OBJ"), ("glb", "GLB"), ("stl", "STL"), ("fbx", "FBX"), ("usdz", "USDZ")]:
+        for fmt_val, fmt_name in [
+            ("obj", "OBJ"),
+            ("glb", "GLB"),
+            ("stl", "STL"),
+            ("fbx", "FBX"),
+            ("usdz", "USDZ"),
+        ]:
             self.format_combo.addItem(fmt_name, fmt_val)
         fmt_container.addWidget(self.format_combo)
         config_row.addLayout(fmt_container, 1)
@@ -1337,24 +1415,27 @@ class MainWindow(QMainWindow):
 
         # 3D Viewer Area
         from PySide6.QtWebEngineCore import QWebEngineSettings
+
         self.model_viewer = QWebEngineView()
-        self.model_viewer.settings().setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
+        self.model_viewer.settings().setAttribute(
+            QWebEngineSettings.LocalContentCanAccessFileUrls, True
+        )
         self.model_viewer.setObjectName("modelViewer")
         self.model_viewer.setMinimumHeight(400)
-        
+
         # Initial empty logic
         self.model_viewer.setHtml("""
         <html><body style="background:#0f172a; color:#64748b; font-family:sans-serif; display:flex; justify-content:center; align-items:center; height:100%; margin:0;">
         <div style="text-align:center;">Generate a 3D model to view it here</div>
         </body></html>
         """)
-        
+
         layout.addWidget(self.model_viewer, 1)
 
         # Buttons
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(10)
-        
+
         self.btn_save_obj = QPushButton("⬇️ Download OBJ")
         self.btn_save_obj.setObjectName("primaryButton")
         self.btn_save_obj.clicked.connect(lambda: self._on_save_output("OBJ"))
@@ -1412,13 +1493,16 @@ class MainWindow(QMainWindow):
 
         # Method selection
         self.method_group.buttonClicked.connect(self._on_method_changed)
+
         # Card clicks should also toggle the radio AND trigger method change
         def _click_local(e):
             self.method_group.button(0).setChecked(True)
             self._on_method_changed(self.method_group.button(0))
+
         def _click_cloud(e):
             self.method_group.button(1).setChecked(True)
             self._on_method_changed(self.method_group.button(1))
+
         self.local_card.mousePressEvent = _click_local
         self.cloud_card.mousePressEvent = _click_cloud
 
@@ -1434,6 +1518,9 @@ class MainWindow(QMainWindow):
         self.generate_btn.clicked.connect(self._on_generate)
         self.logout_btn.clicked.connect(self._on_logout)
         self.quit_btn.clicked.connect(self.close)
+
+        # Text input - enable generate button when text is entered
+        self.prompt_input.textChanged.connect(self._on_prompt_text_changed)
 
     def _load_stylesheet(self):
         """Load the application stylesheet."""
@@ -1535,6 +1622,19 @@ class MainWindow(QMainWindow):
         }
         
         #fileInput:focus {
+            border-color: #3b82f6;
+        }
+
+        /* Prompt Input */
+        #promptInput {
+            background-color: #1a2332;
+            color: #e2e8f0;
+            border: 1px solid #1e3a5f;
+            border-radius: 6px;
+            padding: 10px 14px;
+        }
+
+        #promptInput:focus {
             border-color: #3b82f6;
         }
         
@@ -1740,11 +1840,31 @@ class MainWindow(QMainWindow):
             self.image_tab.setChecked(True)
             self.text_tab.setObjectName("tabButtonInactive")
             self.text_tab.setChecked(False)
+            # Toggle UI visibility - show file input, hide text input
+            self.file_input.setVisible(True)
+            self.browse_btn.setVisible(True)
+            if hasattr(self, "text_container"):
+                self.text_container.setVisible(False)
+            # Switch back to previous method selection
+            self._add_log("🔄 Mode: Image-to-3D")
         else:
             self.text_tab.setObjectName("tabButtonActive")
             self.text_tab.setChecked(True)
             self.image_tab.setObjectName("tabButtonInactive")
             self.image_tab.setChecked(False)
+            # Toggle UI visibility - hide file input, show text input
+            self.file_input.setVisible(False)
+            self.browse_btn.setVisible(False)
+            if hasattr(self, "text_container"):
+                self.text_container.setVisible(True)
+            # Text mode requires Cloud API - switch to cloud automatically
+            if self.method_group.checkedId() == 0:  # If local is selected
+                self.method_group.button(1).setChecked(True)
+                self._on_method_changed(self.method_group.button(1))
+            # Enable generate button if there's already text
+            prompt = self.prompt_input.toPlainText().strip()
+            self.generate_btn.setEnabled(bool(prompt))
+            self._add_log("🔄 Mode: Text-to-3D (Cloud API only)")
         self._load_stylesheet()
 
     def _on_method_changed(self, button):
@@ -1786,7 +1906,7 @@ class MainWindow(QMainWindow):
         self.resolution_combo.blockSignals(False)
 
         # Update model info text
-        if hasattr(self, 'model_info_label') and hasattr(self, 'model_descriptions'):
+        if hasattr(self, "model_info_label") and hasattr(self, "model_descriptions"):
             desc = self.model_descriptions.get(model_id, "")
             self.model_info_label.setText(desc)
 
@@ -1795,19 +1915,21 @@ class MainWindow(QMainWindow):
 
     def _update_cost_preview(self):
         """Update the cost preview box based on current resolution and credit balance."""
-        if not hasattr(self, 'cloud_cost_value'):
+        if not hasattr(self, "cloud_cost_value"):
             return
 
         res = self.resolution_combo.currentData() or "1024"
         cost = CREDIT_COSTS.get(res, 20)
 
         # Get cached credit info
-        trial_remaining = getattr(self, '_cached_trial_remaining', 0)
-        credits_balance = getattr(self, '_cached_credits_balance', 0)
+        trial_remaining = getattr(self, "_cached_trial_remaining", 0)
+        credits_balance = getattr(self, "_cached_credits_balance", 0)
 
         if trial_remaining > 0:
             self.cloud_cost_value.setText("FREE (trial) — 0 credits")
-            self.cloud_cost_value.setStyleSheet("color: #a7f3d0; font-size: 12px; font-weight: 600; background: transparent;")
+            self.cloud_cost_value.setStyleSheet(
+                "color: #a7f3d0; font-size: 12px; font-weight: 600; background: transparent;"
+            )
             # Update cost box border to green
             self.cloud_cost_value.parentWidget().setStyleSheet("""
                 QFrame {
@@ -1819,8 +1941,12 @@ class MainWindow(QMainWindow):
             """)
         elif credits_balance >= cost:
             remaining = credits_balance - cost
-            self.cloud_cost_value.setText(f"Cost: {cost} credits → {remaining} left after")
-            self.cloud_cost_value.setStyleSheet("color: #a7f3d0; font-size: 12px; font-weight: 600; background: transparent;")
+            self.cloud_cost_value.setText(
+                f"Cost: {cost} credits → {remaining} left after"
+            )
+            self.cloud_cost_value.setStyleSheet(
+                "color: #a7f3d0; font-size: 12px; font-weight: 600; background: transparent;"
+            )
             self.cloud_cost_value.parentWidget().setStyleSheet("""
                 QFrame {
                     background-color: rgba(21, 128, 61, 0.15);
@@ -1830,8 +1956,12 @@ class MainWindow(QMainWindow):
                 }
             """)
         else:
-            self.cloud_cost_value.setText(f"Need {cost} credits, have {credits_balance} ❌")
-            self.cloud_cost_value.setStyleSheet("color: #fecdd3; font-size: 12px; font-weight: 600; background: transparent;")
+            self.cloud_cost_value.setText(
+                f"Need {cost} credits, have {credits_balance} ❌"
+            )
+            self.cloud_cost_value.setStyleSheet(
+                "color: #fecdd3; font-size: 12px; font-weight: 600; background: transparent;"
+            )
             self.cloud_cost_value.parentWidget().setStyleSheet("""
                 QFrame {
                     background-color: rgba(127, 29, 29, 0.2);
@@ -1848,7 +1978,7 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"[MainWindow] Cloud credit display refresh error: {e}")
             # Set defaults on error
-            if hasattr(self, 'cloud_credit_value'):
+            if hasattr(self, "cloud_credit_value"):
                 self.cloud_credit_value.setText("Unable to load")
             self._cached_trial_remaining = 0
             self._cached_credits_balance = 0
@@ -1861,7 +1991,7 @@ class MainWindow(QMainWindow):
         """Refresh the inline credit display in the cloud options section."""
         from core.credit_manager import get_user_balance
 
-        if not hasattr(self, 'cloud_credit_value'):
+        if not hasattr(self, "cloud_credit_value"):
             return
 
         user_id = self.session_manager.user_id
@@ -1900,7 +2030,9 @@ class MainWindow(QMainWindow):
 
         if trial > 0:
             self.cloud_credit_value.setText(f"🎁 Trial: {trial} free generation(s)")
-            self.cloud_credit_value.setStyleSheet("color: #a7f3d0; font-size: 16px; font-weight: 700; background: transparent;")
+            self.cloud_credit_value.setStyleSheet(
+                "color: #a7f3d0; font-size: 16px; font-weight: 700; background: transparent;"
+            )
             self.cloud_credit_value.parentWidget().setStyleSheet("""
                 QFrame {
                     background-color: rgba(21, 128, 61, 0.15);
@@ -1911,7 +2043,9 @@ class MainWindow(QMainWindow):
             """)
         elif credits > 0:
             self.cloud_credit_value.setText(f"{credits} credits")
-            self.cloud_credit_value.setStyleSheet("color: #a7f3d0; font-size: 16px; font-weight: 700; background: transparent;")
+            self.cloud_credit_value.setStyleSheet(
+                "color: #a7f3d0; font-size: 16px; font-weight: 700; background: transparent;"
+            )
             self.cloud_credit_value.parentWidget().setStyleSheet("""
                 QFrame {
                     background-color: rgba(21, 128, 61, 0.15);
@@ -1922,7 +2056,9 @@ class MainWindow(QMainWindow):
             """)
         else:
             self.cloud_credit_value.setText("0 credits")
-            self.cloud_credit_value.setStyleSheet("color: #fecdd3; font-size: 16px; font-weight: 700; background: transparent;")
+            self.cloud_credit_value.setStyleSheet(
+                "color: #fecdd3; font-size: 16px; font-weight: 700; background: transparent;"
+            )
             self.cloud_credit_value.parentWidget().setStyleSheet("""
                 QFrame {
                     background-color: rgba(127, 29, 29, 0.2);
@@ -1969,15 +2105,22 @@ class MainWindow(QMainWindow):
                 pixmap.scaled(400, 300, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             )
             self.image_preview.show()
+            self.file_input.setText(Path(file_path).name)
+            self.generate_btn.setEnabled(True)
+            self._add_log(f"Image loaded: {Path(file_path).name}")
 
-        self.file_input.setText(Path(file_path).name)
-        self.generate_btn.setEnabled(True)
-        self._add_log(f"Image loaded: {Path(file_path).name}")
+    def _on_prompt_text_changed(self):
+        """Enable/disable generate button based on text input."""
+        if self.text_tab.isChecked():
+            prompt = self.prompt_input.toPlainText().strip()
+            self.generate_btn.setEnabled(bool(prompt))
 
     def _on_reset(self):
         """Handle reset button click."""
         self.selected_file = None
         self.file_input.clear()
+        self.prompt_input.clear()
+        self.negative_prompt.clear()
         self.image_preview.clear()
         self.image_preview.hide()
         self.preview_label.show()
@@ -2122,7 +2265,10 @@ class MainWindow(QMainWindow):
         self.used_value.setText(f"{used}")
 
         # Also refresh cloud credit display if visible (deferred & safe)
-        if hasattr(self, 'cloud_options_widget') and self.cloud_options_widget.isVisible():
+        if (
+            hasattr(self, "cloud_options_widget")
+            and self.cloud_options_widget.isVisible()
+        ):
             QTimer.singleShot(50, self._safe_refresh_cloud_credit_display)
 
     def _on_buy_credits(self):
@@ -2141,8 +2287,12 @@ class MainWindow(QMainWindow):
         self.setCursor(Qt.WaitCursor)
         try:
             # Use cached credits if available, to avoid blocking call
-            cached_balance = getattr(self, '_cached_credits_balance', 0)
-            current_credits = cached_balance if cached_balance else getattr(self.session_manager, 'credits', 0)
+            cached_balance = getattr(self, "_cached_credits_balance", 0)
+            current_credits = (
+                cached_balance
+                if cached_balance
+                else getattr(self.session_manager, "credits", 0)
+            )
             dialog = CreditPurchaseDialog(self, current_credits)
         except Exception as e:
             print(f"[MainWindow] Buy credits dialog error: {e}")
@@ -2187,45 +2337,63 @@ class MainWindow(QMainWindow):
             )
 
     def _on_generate(self):
-        """Handle generate button click."""
-        if not self.selected_file:
-            QMessageBox.warning(self, "Warning", "Please select an image first.")
-            return
+        """Handle generate button click for both Image and Text modes."""
+        is_text_mode = self.text_tab.isChecked()
+
+        # Validation
+        if is_text_mode:
+            prompt = self.prompt_input.toPlainText().strip()
+            if not prompt:
+                QMessageBox.warning(
+                    self, "Warning", "Please enter a description for the 3D model."
+                )
+                return
+            input_data = prompt
+            negative_prompt = self.negative_prompt.text().strip()
+            input_type = "text"
+        else:
+            if not self.selected_file:
+                QMessageBox.warning(self, "Warning", "Please select an image first.")
+                return
+            input_data = str(self.selected_file)
+            negative_prompt = ""
+            input_type = "image"
 
         # Get settings
-        model = "local" if self.method_group.checkedId() == 0 else "cloud"
+        model_type = "local" if self.method_group.checkedId() == 0 else "cloud"
+
+        # Text mode ALWAYS uses cloud
+        if is_text_mode and model_type == "local":
+            self.method_group.button(1).setChecked(True)
+            self._on_method_changed(self.method_group.button(1))
+            model_type = "cloud"
 
         # Get model and resolution from combos
-        api_model = self.model_combo.currentData()  # e.g., "hitem3dv1.5"
-        api_resolution = self.resolution_combo.currentData()  # e.g., "1536pro"
+        api_model = self.model_combo.currentData()
+        api_resolution = self.resolution_combo.currentData()
 
-        # Local processing is FREE - no credits needed
-        if model == "local":
-            self._start_local_generation("standard")  # Quality doesn't matter for local
+        # Local processing (image only) is FREE
+        if model_type == "local" and not is_text_mode:
+            self._start_local_generation("standard")
             return
 
-        # TRIAL: First generation uses cloud API with highest resolution by default
-        # Check if user has used trial already
+        # Credit check and deduction for Cloud
         from core.credit_manager import get_user_balance
 
         balance_info = get_user_balance(
             self.session_manager.user_id, self.session_manager.device_fingerprint
         )
         trial_used = balance_info.get("trial_used", 0)
+        is_trial = trial_used == 0
 
-        is_trial = trial_used == 0  # First generation is trial
-
-        # For trial, force best model (portrait v2.1) and highest resolution
+        # For trial, force best settings
         if is_trial:
-            api_model = "scene-portraitv2.1"
-            api_resolution = "1536pro"
-            # Update UI to reflect trial selection
-            self.model_combo.setCurrentText("Portrait v2.1")
-            self._add_log(
-                "🎯 Trial: Using Best Quality with 1536³ Pro resolution - FREE first generation!"
-            )
+            api_model = "scene-portraitv2.1" if not is_text_mode else "tripo3d"
+            api_resolution = "1536pro" if not is_text_mode else "1024"
+            if not is_text_mode:
+                self.model_combo.setCurrentText("Portrait v2.1")
+            self._add_log(f"🎯 Trial: Best Quality - FREE first generation!")
 
-        # Check credits BEFORE generation
         allowed, reason, cost = can_generate(
             self.session_manager.user_id,
             api_resolution,
@@ -2236,25 +2404,22 @@ class MainWindow(QMainWindow):
             reply = QMessageBox.question(
                 self,
                 "Insufficient Credits",
-                f"{reason}\n\nWould you like to buy more credits?",
+                f"{reason}\n\nBuy more?",
                 QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.Yes,
             )
             if reply == QMessageBox.Yes:
                 self._on_buy_credits()
             return
 
-        # Use the selected model
-        model_id = api_model
-
-        # Deduct credits BEFORE starting generation
-        # Use format from dropdown if cloud mode
-        selected_format = self.format_combo.currentData() if hasattr(self, 'format_combo') else "glb"
+        # Deduct credits
+        selected_format = (
+            self.format_combo.currentData() if hasattr(self, "format_combo") else "glb"
+        )
         deduction = deduct_credits(
             self.session_manager.user_id,
             api_resolution,
-            model_id,
-            input_type="image",
+            api_model,
+            input_type=input_type,
             output_format=selected_format,
             is_trial=is_trial,
             device_fingerprint=self.session_manager.device_fingerprint,
@@ -2262,33 +2427,24 @@ class MainWindow(QMainWindow):
 
         if not deduction.get("success"):
             QMessageBox.warning(
-                self,
-                "Credit Error",
-                f"Could not deduct credits: {deduction.get('error', 'Unknown error')}",
+                self, "Credit Error", f"Deduction failed: {deduction.get('error')}"
             )
             return
 
-        # Store generation parameters
-        self._current_model = model
+        # Generation Setup
+        self._current_model = model_type
         self._current_quality = api_resolution
         self._current_api_model = api_model
         self._current_generation_id = deduction.get("generation_id")
         self._current_credits_deducted = deduction.get("credits_deducted", 0)
-        self._is_trial_generation = is_trial  # Track if this is trial generation
+        self._is_trial_generation = is_trial
 
-        source = deduction.get("source", "credits")
-        if source == "trial_free":
-            self._add_log("💰 First generation (trial) - FREE!")
-        else:
-            self._add_log(
-                f"💰 Credits deducted: {self._current_credits_deducted} (source: {source})"
-            )
+        self._add_log(
+            f"💰 Credits deducted: {self._current_credits_deducted} (source: {deduction.get('source')})"
+        )
 
-        # Start generation
+        # Start Worker
         self.generate_btn.setEnabled(False)
-
-        # Disable Open/Save buttons during generation
-        # Disable Open/Save buttons during generation
         self.btn_save_obj.setEnabled(False)
         self.btn_save_stl.setEnabled(False)
         self.btn_save_glb.setEnabled(False)
@@ -2296,24 +2452,23 @@ class MainWindow(QMainWindow):
         self.status_label.setText("Initializing...")
         self.status_icon.setText("⏳")
         self.progress_bar.setValue(0)
-
         self.start_time = datetime.now()
         self.timer.start(1000)
 
-        # Get output formats from format combo if available
         output_formats = ["obj", "stl", "glb"]
-        if hasattr(self, 'format_combo'):
-            selected_fmt = self.format_combo.currentData()
-            if selected_fmt and selected_fmt not in output_formats:
-                output_formats.append(selected_fmt)
+        if hasattr(self, "format_combo"):
+            fmt = self.format_combo.currentData()
+            if fmt and fmt not in output_formats:
+                output_formats.append(fmt)
 
-        # Ensure selected_file is not None (it's checked above)
         self.worker = GenerationWorker(
-            str(self.selected_file),  # Convert to string explicitly
-            model,  # "local" or "cloud"
-            api_resolution,  # Resolution
-            api_model,  # Model ID for cloud
+            input_data,
+            model_type,
+            api_resolution,
+            api_model,
             output_formats,
+            mode=input_type,
+            negative_prompt=negative_prompt,
         )
         self.worker.progress.connect(self._on_progress)
         self.worker.status.connect(self._on_status)
@@ -2321,9 +2476,10 @@ class MainWindow(QMainWindow):
         self.worker.error.connect(self._on_generation_error)
         self.worker.start()
 
-        self._add_log(
-            f"🚀 Starting 3D generation with {api_model} at {api_resolution}: {Path(self.selected_file).name}"
-        )
+        msg = f"🚀 Starting {input_type.upper()}-to-3D at {api_resolution}"
+        if not is_text_mode:
+            msg += f": {Path(self.selected_file).name}"
+        self._add_log(msg)
 
     def _start_local_generation(self, quality: str):
         """Start local processing (FREE - no credits needed)."""
@@ -2459,10 +2615,11 @@ class MainWindow(QMainWindow):
             glb_path = Path(result["glb"]).absolute()
             glb_uri = glb_path.as_uri()
             base_dir = QUrl.fromLocalFile(str(glb_path.parent) + "/")
-            
+
             # Use model-viewer but gracefully handle PySide6 SwiftShader WebGL failures
             # on machines without D3D11 / OpenGL.
-            self.model_viewer.setHtml(f"""
+            self.model_viewer.setHtml(
+                f"""
             <html><head>
             <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
             <style>
@@ -2496,7 +2653,9 @@ class MainWindow(QMainWindow):
                 }}
             </script>
             </body></html>
-            """, baseUrl=base_dir)
+            """,
+                baseUrl=base_dir,
+            )
 
         # Enable Open/Save buttons for available formats
         if result.get("obj"):
@@ -2633,8 +2792,6 @@ class MainWindow(QMainWindow):
                     self.eta_label.setText("ETA: 00:00")
             elif current_value >= 100:
                 self.eta_label.setText("ETA: 00:00")
-
-
 
     def _on_save_output(self, format_name: str):
         """Handle save output button click."""

@@ -76,6 +76,133 @@ def run_pipeline(
         )
 
 
+async def run_text_pipeline_async(
+    prompt: str,
+    negative_prompt: str = "",
+    name: str = "model",
+    api_token: Optional[str] = None,
+    api_model: str = "tripo3d",
+    api_resolution: str = "1024",
+    api_format: str = "glb",
+    output_dir: str = None,
+    progress_callback=None,
+    **kwargs,
+) -> dict:
+    """
+    Unified entrypoint for Text-to-3D generation.
+    """
+    if output_dir is None:
+        output_dir = str(get_output_dir())
+
+    credentials = resolve_hitem3d_credentials(api_token)
+
+    # Text-to-3D always needs Cloud API (no local text-to-3D yet)
+    t0 = time.perf_counter()
+
+    # Wrap progress callback
+    wrapped_callback = None
+    if progress_callback:
+
+        def _wrapped_progress(percent, message):
+            progress_callback("api", percent, message)
+
+        wrapped_callback = _wrapped_progress
+
+    # Initialize API client
+    from core.unified_api import Unified3DAPI, APICredentials, APIPlatform
+
+    # Resolve credentials for unified API
+    access_token = credentials.get("access_token")
+    client_id = credentials.get("client_id")
+    client_secret = credentials.get("client_secret")
+
+    if access_token:
+        unified_credentials = APICredentials(
+            api_key=access_token,
+            access_token=access_token,
+            platform=APIPlatform.TRIPO3D,
+        )
+    elif client_id and client_secret:
+        unified_credentials = APICredentials(
+            api_key=f"{client_id}:{client_secret}",
+            client_id=client_id,
+            client_secret=client_secret,
+            platform=APIPlatform.HITEM3D,
+        )
+    else:
+        api_token_val = credentials.get("access_token", "")
+        if (
+            not api_token_val
+            and credentials.get("client_id")
+            and credentials.get("client_secret")
+        ):
+            api_token_val = f"{credentials['client_id']}:{credentials['client_secret']}"
+        unified_credentials = APICredentials(api_key=api_token_val)
+
+    api = Unified3DAPI(credentials=unified_credentials)
+
+    try:
+        # Generate 3D model using API
+        if wrapped_callback:
+            wrapped_callback(5, "Initializing Text-to-3D pipeline...")
+
+        gen_result = await api.generate_from_text(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            output_dir=output_dir,
+            model_name=name,
+            format_type="glb",
+            api_quality=api_resolution,
+            progress_callback=wrapped_callback,
+            platform=api_model,
+        )
+
+        if not gen_result.success:
+            raise Exception(gen_result.error_message)
+
+        result = {"glb": gen_result.model_path}
+
+        # Convert to multiple formats
+        import trimesh
+        import os
+
+        if wrapped_callback:
+            wrapped_callback(96, "Converting to multiple formats...")
+
+        glb_path = gen_result.model_path
+        if glb_path and os.path.exists(glb_path):
+            base_name = name
+            try:
+                mesh = trimesh.load(glb_path, process=False)
+                formats_to_export = ["obj", "glb", "stl"]
+                for fmt in formats_to_export:
+                    if fmt == "glb":
+                        continue
+                    output_path = os.path.join(output_dir, f"{base_name}.{fmt}")
+                    if isinstance(mesh, trimesh.Scene):
+                        for name_geo, geom in mesh.geometry.items():
+                            geom.export(output_path, file_type=fmt)
+                            result[fmt] = output_path
+                            break
+                    else:
+                        mesh.export(output_path, file_type=fmt)
+                        result[fmt] = output_path
+            except Exception as e:
+                print(f"[Text-to-3D] Format conversion failed: {e}")
+
+        t1 = time.perf_counter()
+        result["processing_method"] = "cloud_api_text"
+        result["api_used"] = True
+        result["stats"] = {
+            "total_seconds": round(t1 - t0, 3),
+            "stages": {"api_processing": round(t1 - t0, 3)},
+        }
+        return result
+
+    finally:
+        pass
+
+
 async def run_pipeline_async(
     image_path: str,
     name: str = "model",
@@ -331,51 +458,57 @@ async def _run_api_pipeline(
 
     # Initialize API client
     from core.unified_api import Unified3DAPI, APICredentials, APIPlatform
-    
+
     # Check if credentials is a dict or string
     if isinstance(credentials, dict):
         access_token = credentials.get("access_token")
         client_id = credentials.get("client_id")
         client_secret = credentials.get("client_secret")
-        
+
         # Create credentials with proper fields
         if access_token:
             unified_credentials = APICredentials(
                 api_key=access_token,
                 access_token=access_token,
-                platform=APIPlatform.TRIPO3D
+                platform=APIPlatform.TRIPO3D,
             )
         elif client_id and client_secret:
             unified_credentials = APICredentials(
                 api_key=f"{client_id}:{client_secret}",
                 client_id=client_id,
                 client_secret=client_secret,
-                platform=APIPlatform.HITEM3D
+                platform=APIPlatform.HITEM3D,
             )
         else:
             api_token_val = credentials.get("access_token", "")
-            if not api_token_val and credentials.get("client_id") and credentials.get("client_secret"):
-                api_token_val = f"{credentials['client_id']}:{credentials['client_secret']}"
+            if (
+                not api_token_val
+                and credentials.get("client_id")
+                and credentials.get("client_secret")
+            ):
+                api_token_val = (
+                    f"{credentials['client_id']}:{credentials['client_secret']}"
+                )
             unified_credentials = APICredentials(api_key=api_token_val)
     else:
         api_token_val = str(credentials)
         unified_credentials = APICredentials(api_key=api_token_val)
-        
+
     api = Unified3DAPI(credentials=unified_credentials)
 
     try:
         # Generate 3D model using API
         output_dir = str(get_output_dir())
-        
+
         # Format quality
         quality_map = {
             "2048": "production",
             "1024": "high",
             "512": "standard",
-            "256": "draft"
+            "256": "draft",
         }
         quality = quality_map.get(api_resolution, "standard")
-        
+
         gen_result = await api.generate_from_image(
             image_path=image_path,
             output_dir=output_dir,
@@ -384,9 +517,9 @@ async def _run_api_pipeline(
             format_type="glb",  # Request GLB initially for best mesh quality
             progress_callback=wrapped_callback,
             model_id=api_model,
-            api_resolution=api_resolution
+            api_resolution=api_resolution,
         )
-        
+
         if not gen_result.success:
             raise Exception(gen_result.error_message)
 
@@ -451,7 +584,7 @@ async def _run_api_pipeline(
         return result
 
     finally:
-        pass # Unified3DAPI doesn't need to be closed explicitly in this context
+        pass  # Unified3DAPI doesn't need to be closed explicitly in this context
 
 
 def get_available_models(api_token: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
@@ -690,26 +823,42 @@ def resolve_hitem3d_credentials(api_token: Optional[str]) -> Dict[str, Optional[
     if not (access_token or (client_id and client_secret)):
         try:
             from core.supabase_client import get_supabase_client
+
             sb = get_supabase_client()
             if sb:
                 # Try Tripo3D key first
-                result = sb.table("model_api_keys").select("key_value").eq(
-                    "key_name", "TRIPO_API_KEY"
-                ).eq("is_active", True).limit(1).execute()
+                result = (
+                    sb.table("model_api_keys")
+                    .select("key_value")
+                    .eq("key_name", "TRIPO_API_KEY")
+                    .eq("is_active", True)
+                    .limit(1)
+                    .execute()
+                )
                 rows = result.data or []
                 if rows and rows[0].get("key_value"):
                     access_token = rows[0]["key_value"]
                 else:
                     # Try Hitem3D keys
-                    result = sb.table("model_api_keys").select("key_name, key_value").eq(
-                        "model_id", "hitem3d"
-                    ).eq("is_active", True).execute()
+                    result = (
+                        sb.table("model_api_keys")
+                        .select("key_name, key_value")
+                        .eq("model_id", "hitem3d")
+                        .eq("is_active", True)
+                        .execute()
+                    )
                     rows = result.data or []
-                    for r in rows:
-                        if r.get("key_name") == "HITEM3D_CLIENT_ID" and r.get("key_value"):
-                            client_id = r["key_value"]
-                        elif r.get("key_name") == "HITEM3D_CLIENT_SECRET" and r.get("key_value"):
-                            client_secret = r["key_value"]
+                    hitem_keys = {r.get("key_name"): r.get("key_value") for r in rows}
+
+                    if "access_token" in hitem_keys and hitem_keys["access_token"]:
+                        access_token = hitem_keys["access_token"]
+                    else:
+                        client_id = hitem_keys.get(
+                            "HITEM3D_CLIENT_ID"
+                        ) or hitem_keys.get("client_id")
+                        client_secret = hitem_keys.get(
+                            "HITEM3D_CLIENT_SECRET"
+                        ) or hitem_keys.get("client_secret")
         except Exception:
             pass
 

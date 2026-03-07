@@ -170,7 +170,7 @@ class Hitem3DAPI:
             msg = result.get("msg") or "Unknown error"
             if result.get("code") == 30010000 or "balance" in str(msg).lower():
                 raise InsufficientBalanceError(
-                    "Hitem3D balance is not enough. Please credit your account to generate."
+                    "Cloud API balance is not enough. If you are on a trial, please contact admin at contact@trivoxaimodels.com to request trial credits."
                 )
             raise Exception(f"API error: {msg}")
 

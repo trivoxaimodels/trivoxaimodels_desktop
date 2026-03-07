@@ -59,12 +59,18 @@ class SupabaseClient:
     def get_client(cls) -> Client:
         if cls._client is None:
             url = os.environ.get("SUPABASE_URL")
-            # Use service_role key (same as web app) — desktop is a trusted binary
-            key = os.environ.get("SUPABASE_KEY") or os.environ.get("SUPABASE_ANON_KEY")
+            # SECURITY FIX: Desktop app uses anon key, never service_role key.
+            # RLS (Row Level Security) restricts what the device can access.
+            key = os.environ.get("SUPABASE_ANON_KEY")
+            
+            if os.environ.get("SUPABASE_KEY"):
+                print("WARNING: SUPABASE_KEY (service role) found in environment. This is a severe security risk in the desktop app.")
+                # Fallback only for backward compatibility during dev
+                if not key:
+                    key = os.environ.get("SUPABASE_KEY")
             
             if not url or not key:
                 # In development/frozen app, these should be loaded from .env or compiled configuration
-                # If running frozen, os.environ might not have them if not passed, but we'll assume .env loader runs first
                 pass
             
             if url and key:

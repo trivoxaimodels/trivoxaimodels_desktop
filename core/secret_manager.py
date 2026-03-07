@@ -46,14 +46,9 @@ class SecretManager:
             except Exception as e:
                 logger.debug(f"Web API fetch failed for {key_name}: {e}")
 
-        # 4. Fetch from Supabase (requires license)
-        try:
-            val = cls._fetch_remote_secret(key_name)
-            if val:
-                cls._secrets_cache[key_name] = val
-                return val
-        except Exception as e:
-            logger.error(f"Failed to fetch secret {key_name}: {e}")
+        # SECURITY FIX: Direct fetching of AI model keys from Supabase is disabled.
+        # All AI model generation should happen via the web proxy to prevent key exposure.
+        # _fetch_remote_secret is removed.
 
         return None
 
@@ -119,50 +114,6 @@ class SecretManager:
         except Exception as e:
             logger.debug(f"Web API fetch error: {e}")
             return None
-
-    @classmethod
-    def _fetch_remote_secret(cls, key_name: str) -> Optional[str]:
-        client = get_supabase()
-        if not client:
-            return None
-
-        # Check if license manager is available and has valid license
-        try:
-            lm = get_license_manager()
-            if not lm._current_license:
-                return None
-            license_key = lm._current_license.key
-            device_id = lm._current_license.hardware_fingerprint
-        except Exception:
-            # No valid license - skip remote secret fetch
-            return None
-
-        try:
-            # RPC `get_app_config` takes (p_license_key, p_device_id)
-            # Returns JSON { "TRIPO_KEY": "...", "HITEM_KEY": "..." }
-            response = client.rpc(
-                "get_app_config",
-                {"p_license_key": license_key, "p_device_id": device_id},
-            ).execute()
-
-            data = response.data
-
-            # If error returned (our RPC returns `{"error": "..."}` on failure)
-            if isinstance(data, dict) and "error" in data:
-                logger.error(f"Secret fetch error: {data['error']}")
-                return None
-
-            # Update cache with all returned secrets
-            if isinstance(data, dict):
-                cls._secrets_cache.update(data)
-                return data.get(key_name)
-
-        except Exception as e:
-            # Don't log error for missing RPC - this is optional feature
-            logger.debug(f"get_app_config RPC not available: {e}")
-            return None
-
-        return None
 
 
 # Helper
