@@ -1,5 +1,5 @@
 """
-Credit Manager — Automated Credit System for ImageTo3D Pro
+Credit Manager — Automated Credit System for Trivox AI Models
 
 Handles:
 - User registration with trial credits

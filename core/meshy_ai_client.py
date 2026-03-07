@@ -1,5 +1,5 @@
 """
-Meshy AI API Client for ImageTo3D Pro
+Meshy AI API Client for Trivox AI Models
 
 Cloud-based 3D generation from images and text prompts.
 Docs: https://docs.meshy.ai/en
@@ -15,10 +15,12 @@ from pathlib import Path
 from dataclasses import dataclass
 from config.settings import get_output_dir
 from core.logger import get_logger, log_exception
+from core.device_fingerprint import get_device_fingerprint
 
 logger = get_logger(__name__)
 
-BASE_URL = "https://api.meshy.ai"
+from config.settings import get_web_api_url
+BASE_URL = f"{get_web_api_url().rstrip('/')}/proxy/meshy_ai"
 
 
 class MeshyAIError(Exception):
@@ -69,7 +71,8 @@ class MeshyAIClient:
         timeout: int = 300,
         max_retries: int = 3,
     ):
-        self.api_key = api_key or os.getenv("MESHY_API_KEY", "")
+        self.api_key = api_key or "proxy_mode"
+        self.device_fp = get_device_fingerprint()
         self.base_url = BASE_URL
         self.timeout = timeout
         self.max_retries = max_retries
@@ -82,7 +85,7 @@ class MeshyAIClient:
             self._session = aiohttp.ClientSession(
                 timeout=aiohttp.ClientTimeout(total=self.timeout),
                 headers={
-                    "Authorization": f"Bearer {self.api_key}",
+                    "X-Device-Fingerprint": self.device_fp,
                     "Content-Type": "application/json",
                 },
             )

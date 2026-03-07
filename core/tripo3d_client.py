@@ -1,5 +1,5 @@
 """
-Tripo3D API Integration Module for ImageTo3D Pro
+Tripo3D API Integration Module for Trivox AI Models
 
 Production-ready client for Tripo3D API with support for:
 - Image-to-3D generation
@@ -204,8 +204,10 @@ class Tripo3DClient:
         )
     """
 
-    BASE_URL = "https://api.tripo3d.ai/v2"
-    API_VERSION = "v2"
+    # Refactored for Web Proxy
+    from config.settings import get_web_api_url
+    BASE_URL = f"{get_web_api_url().rstrip('/')}/proxy/tripo3d"
+    API_VERSION = ""
 
     # Credit costs per operation (approximate)
     CREDIT_COSTS = {
@@ -236,7 +238,12 @@ class Tripo3DClient:
             max_retries: Maximum retry attempts for failed requests
             retry_delay: Delay between retries in seconds
         """
-        self.api_key = api_key or os.getenv("TRIPO3D_API_KEY")
+        # Proxy architecture means api_key isn't strictly Tripo's anymore - the web app handles it.
+        # But we pass the user's Device Fingerprint so the Web App can verify balance and credits.
+        from core.device_fingerprint import get_device_fingerprint
+        self.api_key = api_key or "proxy_mode"
+        self.device_fp = get_device_fingerprint()
+        
         self.base_url = (base_url or self.BASE_URL).rstrip("/")
         self.timeout = timeout
         self.max_retries = max_retries
@@ -255,23 +262,15 @@ class Tripo3DClient:
         )
 
     def _validate_api_key(self) -> None:
-        """Validate the API key format."""
-        if not self.api_key:
-            raise Tripo3DAuthError(
-                "API key is required. Set TRIPO3D_API_KEY environment variable or pass api_key parameter."
-            )
-
-        if not self.api_key.startswith("tsk_"):
-            logger.warning(
-                "API key doesn't start with 'tsk_'. Ensure you're using a valid Tripo3D API key."
-            )
+        """API Validation is deferred to Web Proxy."""
+        pass
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session."""
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession(
                 headers={
-                    "Authorization": f"Bearer {self.api_key}",
+                    "X-Device-Fingerprint": self.device_fp,
                     "Content-Type": "application/json",
                     "User-Agent": "ImageTo3D-Pro/1.0",
                 },

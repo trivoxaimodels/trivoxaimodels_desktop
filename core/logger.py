@@ -1,5 +1,5 @@
 """
-Structured Logging Module for ImageTo3D Pro
+Structured Logging Module for Trivox AI Models
 
 Provides consistent logging across the application with support for
 structured JSON logging, log rotation, and context tracking.
@@ -84,14 +84,14 @@ class Logger:
             or os.environ.get("APPDATA")
             or str(Path.home())
         )
-        log_dir = Path(app_data) / "ImageTo3D Pro" / "logs"
+        log_dir = Path(app_data) / "Trivox AI Models" / "logs"
         try:
             log_dir.mkdir(parents=True, exist_ok=True)
         except PermissionError:
             # Fallback to temp directory if AppData is not writable
             log_dir = (
                 Path(os.environ.get("TEMP") or os.environ.get("TMP") or "/tmp")
-                / "ImageTo3D Pro"
+                / "Trivox AI Models"
                 / "logs"
             )
             log_dir.mkdir(parents=True, exist_ok=True)

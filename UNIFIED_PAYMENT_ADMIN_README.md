@@ -16,7 +16,7 @@ This system allows **web admin panel** to control payment settings for **BOTH** 
 
 ## 📁 Files Created
 
-### Web App Files (for `I:\ImageTo3DPro_BACKUP`)
+### Web App Files (for `I:\TrivoxAIModels_BACKUP`)
 
 1. **`supabase_migrations/008_payment_settings.sql`**
    - Creates `payment_settings` table

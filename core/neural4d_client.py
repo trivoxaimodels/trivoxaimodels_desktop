@@ -1,5 +1,5 @@
 """
-Neural4D API Client for ImageTo3D Pro
+Neural4D API Client for Trivox AI Models
 
 Cloud-based 3D generation from images and text prompts.
 API v1.2 — https://www.neural4d.com/api
@@ -12,12 +12,13 @@ import aiohttp
 from typing import Optional, Dict, Any, List
 from pathlib import Path
 from dataclasses import dataclass
-from config.settings import get_output_dir
+from config.settings import get_output_dir, get_web_api_url
+from core.device_fingerprint import get_device_fingerprint
 from core.logger import get_logger, log_exception
 
 logger = get_logger(__name__)
 
-BASE_URL = "https://alb.neural4d.com:3000"
+BASE_URL = f"{get_web_api_url().rstrip('/')}/proxy/neural4d"
 
 
 class Neural4DError(Exception):

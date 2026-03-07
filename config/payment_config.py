@@ -1,5 +1,5 @@
 """
-Payment Configuration for ImageTo3D Pro
+Payment Configuration for Trivox AI Models
 
 Switch between payment providers by changing PAYMENT_PROVIDER variable.
 No code changes needed elsewhere!

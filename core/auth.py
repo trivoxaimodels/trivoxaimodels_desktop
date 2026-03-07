@@ -1,5 +1,5 @@
 """
-Server-side bcrypt password authentication for ImageTo3D Pro.
+Server-side bcrypt password authentication for Trivox AI Models.
 Password hash is stored in config; no plain password is ever saved.
 """
 

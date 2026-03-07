@@ -232,28 +232,7 @@ class CompletionDialog(QDialog):
         close_btn.clicked.connect(self.accept)
         btn_layout.addWidget(close_btn)
 
-        folder_btn = QPushButton("📂 Output Folder")
-        folder_btn.setStyleSheet("""
-            QPushButton {
-                padding: 12px 24px;
-                border-radius: 8px;
-                font-weight: 600;
-                border: none;
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 #3b82f6, stop:1 #2563eb);
-                color: white;
-                font-size: 15px;
-                min-width: 140px;
-            }
-            QPushButton:hover {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 #2563eb, stop:1 #1d4ed8);
-            }
-        """)
-        folder_btn.setCursor(Qt.PointingHandCursor)
-        folder_btn.clicked.connect(self._open_output_folder)
-        btn_layout.addWidget(folder_btn)
-
+        buy_btn = None
         if self.is_trial:
             buy_btn = QPushButton("💳 Buy Credits")
             buy_btn.setStyleSheet("""
@@ -411,21 +390,6 @@ class CompletionDialog(QDialog):
                 )
             except Exception as e:
                 QMessageBox.warning(self, "Error", f"Could not save file: {e}")
-
-    def _open_output_folder(self):
-        """Open the output folder and close the dialog."""
-        import subprocess
-
-        # Find output directory from any result path
-        for fmt in ["obj", "glb", "stl", "fbx", "usdz"]:
-            if self.result.get(fmt):
-                output_dir = str(Path(self.result[fmt]).parent)
-                if os.name == "nt":
-                    subprocess.run(["explorer", output_dir])
-                else:
-                    subprocess.run(["xdg-open", output_dir])
-                break
-        self.accept()
 
     def _on_buy_credits(self):
         """Open buy credits dialog."""
@@ -1384,13 +1348,6 @@ class MainWindow(QMainWindow):
         self.reset_btn.setMinimumWidth(120)
         layout.addWidget(self.reset_btn)
 
-        # Open Folder Button
-        self.open_folder_btn = QPushButton("📂 Open Folder")
-        self.open_folder_btn.setObjectName("secondaryButton")
-        self.open_folder_btn.setCursor(Qt.PointingHandCursor)
-        self.open_folder_btn.setMinimumWidth(140)
-        layout.addWidget(self.open_folder_btn)
-
         layout.addSpacing(40)
 
         # Generate Button
@@ -1514,7 +1471,6 @@ class MainWindow(QMainWindow):
 
         # Action buttons
         self.reset_btn.clicked.connect(self._on_reset)
-        self.open_folder_btn.clicked.connect(self._on_open_folder)
         self.generate_btn.clicked.connect(self._on_generate)
         self.logout_btn.clicked.connect(self._on_logout)
         self.quit_btn.clicked.connect(self.close)
@@ -2132,16 +2088,6 @@ class MainWindow(QMainWindow):
         self.generate_btn.setEnabled(False)
         self._add_log("🔄 Reset")
 
-    def _on_open_folder(self):
-        """Handle open folder button click."""
-        import subprocess
-
-        if os.name == "nt":
-            subprocess.run(["explorer", str(self.output_dir)])
-        else:
-            subprocess.run(["xdg-open", str(self.output_dir)])
-        self._add_log(f"📂 Opened output folder: {self.output_dir}")
-
     def _enforce_trial_settings(self):
         """Force Cloud API + Best Model + Highest Resolution during trial period."""
         from core.credit_manager import get_user_balance
@@ -2485,7 +2431,7 @@ class MainWindow(QMainWindow):
         """Start local processing (FREE - no credits needed)."""
 
         # Check if user wants to see the CPU warning modal
-        settings = QSettings("TrivoxModels", "ImageTo3DPro")
+        settings = QSettings("TrivoxModels", "TrivoxAIModels")
         dont_show_again = settings.value("dont_show_cpu_warning", False, type=bool)
 
         if not dont_show_again:

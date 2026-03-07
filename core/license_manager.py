@@ -1,5 +1,5 @@
 """
-License Manager for ImageTo3D Pro
+License Manager for Trivox AI Models
 
 Enforces payment requirement with ONE FREE TRIAL generation.
 Features:
@@ -70,7 +70,7 @@ class LicenseManager:
             or os.environ.get("APPDATA")
             or str(Path.home())
         )
-        config_dir = Path(app_data) / "ImageTo3D Pro" / "config"
+        config_dir = Path(app_data) / "Trivox AI Models" / "config"
 
         self.LICENSE_FILE = config_dir / "license.json"
         self.TRIAL_FILE = config_dir / "trial.json"

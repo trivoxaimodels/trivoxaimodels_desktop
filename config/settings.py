@@ -187,26 +187,22 @@ def get_output_dir() -> Path:
         output_dir.mkdir(parents=True, exist_ok=True)
         return output_dir
 
-    # Use user's Documents folder for cross-platform compatibility
+    # Use user's Local AppData folder for secure, hidden storage
     if os.name == "nt":  # Windows
-        docs_path = Path.home() / "Documents"
+        secure_path = Path(os.getenv("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "TrivoxModels" / "SecureStorage"
     else:  # macOS/Linux
-        docs_path = Path.home() / "Documents"
+        secure_path = Path.home() / ".trivoxmodels" / "secure_storage"
 
-    # Fallback to home directory if Documents doesn't exist
-    if not docs_path.exists():
-        docs_path = Path.home()
-
-    output_dir = docs_path / "TrivoxAI_Models_Output"
+    output_dir = secure_path
 
     # Create the directory if it doesn't exist
     try:
         output_dir.mkdir(parents=True, exist_ok=True)
     except PermissionError:
-        # Fallback to a temp directory if Documents is not writable
+        # Fallback to a temp directory if AppData is not writable
         import tempfile
 
-        output_dir = Path(tempfile.gettempdir()) / "TrivoxAI_Models_Output"
+        output_dir = Path(tempfile.gettempdir()) / "TrivoxAI_Secure_Output"
         output_dir.mkdir(parents=True, exist_ok=True)
 
     return output_dir

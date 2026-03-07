@@ -1,5 +1,5 @@
 """
-Server-Side Device Authentication for ImageTo3D Pro
+Server-Side Device Authentication for Trivox AI Models
 
 All device registration, login, and trial tracking is validated against
 Supabase. Local files serve as read-only cache for offline fallback.

@@ -1,6 +1,6 @@
 # TrivoxModels Desktop App — Complete Backend Blueprint
 
-> **Purpose**: This document is a **self-contained specification** for another AI model to implement the full desktop app backend by mirroring the web app (`I:\ImageTo3DPro_BACKUP`). Follow every section in order; nothing is optional unless marked `[OPTIONAL]`.
+> **Purpose**: This document is a **self-contained specification** for another AI model to implement the full desktop app backend by mirroring the web app (`I:\TrivoxAIModels_BACKUP`). Follow every section in order; nothing is optional unless marked `[OPTIONAL]`.
 
 ---
 
@@ -29,7 +29,7 @@
 ### Web App Architecture (source of truth)
 
 ```
-I:\ImageTo3DPro_BACKUP\
+I:\TrivoxAIModels_BACKUP\
 ├── config/
 │   ├── settings.py          # Centralized configs (ProcessingConfig, APIConfig, UIConfig)
 │   ├── payment_config.py    # Payment provider configs (Gumroad, Razorpay, Stripe, etc.)
@@ -231,7 +231,7 @@ The web app already has the solution: `registered_devices` table on Supabase tra
 
 #### 3.1. Copy web app's `core/server_auth.py` to desktop
 
-This file is the **key anti-tamper module**. It already works with the same Supabase tables. Copy it as-is from `I:\ImageTo3DPro_BACKUP\core\server_auth.py` → `I:\trivoxmodels_desktop_app\core\server_auth.py`.
+This file is the **key anti-tamper module**. It already works with the same Supabase tables. Copy it as-is from `I:\TrivoxAIModels_BACKUP\core\server_auth.py` → `I:\trivoxmodels_desktop_app\core\server_auth.py`.
 
 Functions provided:
 - `check_device_server(fingerprint)` — Checks if device exists in `registered_devices`
@@ -243,7 +243,7 @@ Functions provided:
 
 #### 3.2. Keep existing `core/device_fingerprint.py` (hardware collection)
 
-The current desktop `device_fingerprint.py` collects hardware info but is simpler than the web version. **Replace it with the web version** (`I:\ImageTo3DPro_BACKUP\core\device_fingerprint.py`) which collects:
+The current desktop `device_fingerprint.py` collects hardware info but is simpler than the web version. **Replace it with the web version** (`I:\TrivoxAIModels_BACKUP\core\device_fingerprint.py`) which collects:
 - CPU ID (via WMIC)
 - Motherboard serial
 - Disk serial
@@ -573,7 +573,7 @@ Create a new `CreditPurchaseDialog` (QDialog) that shows:
 
 ### 6.4. Webhook (already handled by web app)
 
-The web app's `/webhook/gumroad` endpoint at `https://imageto3dpro-4f1j.onrender.com/webhook/gumroad` already:
+The web app's `/webhook/gumroad` endpoint at `https://trivoxaimodels-r5ip.onrender.com/webhook/gumroad` already:
 1. Receives Gumroad sale notification
 2. Finds/creates user by buyer email
 3. Looks up plan_id from product
@@ -1165,4 +1165,4 @@ hiddenimports=[
 
 ---
 
-> **Note for the implementing model**: Every file reference in this document uses absolute paths relative to `I:\trivoxmodels_desktop_app\` (desktop) and `I:\ImageTo3DPro_BACKUP\` (web source). When copying files, watch for import path differences — the web app uses `from core.X import Y` which should work identically in the desktop app since both have the same package structure.
+> **Note for the implementing model**: Every file reference in this document uses absolute paths relative to `I:\trivoxmodels_desktop_app\` (desktop) and `I:\TrivoxAIModels_BACKUP\` (web source). When copying files, watch for import path differences — the web app uses `from core.X import Y` which should work identically in the desktop app since both have the same package structure.

@@ -1,5 +1,5 @@
 """
-Device Fingerprint Security System for ImageTo3D Pro
+Device Fingerprint Security System for Trivox AI Models
 
 Generates a unique hardware fingerprint based on:
   - CPU ID / processor info

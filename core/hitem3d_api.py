@@ -26,16 +26,22 @@ class Hitem3DAPI:
     def __init__(
         self,
         access_token: Optional[str] = None,
-        base_url: str = "https://api.hitem3d.ai",
+        base_url: Optional[str] = None,
         client_id: Optional[str] = None,
         client_secret: Optional[str] = None,
     ):
+        from config.settings import get_web_api_url
+        proxy_url = f"{get_web_api_url().rstrip('/')}/proxy/hitem3d"
+        
+        from core.device_fingerprint import get_device_fingerprint
+        self.device_fp = get_device_fingerprint()
+        
         self.access_token = None
         self.client_id = client_id
         self.client_secret = client_secret
-        self.base_url = base_url.rstrip("/")
+        self.base_url = (base_url or proxy_url).rstrip("/")
         self.client = httpx.AsyncClient(timeout=60.0)
-        self._set_access_token(access_token)
+        self._set_access_token(access_token or "proxy_mode")
 
     def _set_access_token(self, access_token: Optional[str]) -> None:
         if access_token and not (self.client_id or self.client_secret):
@@ -90,7 +96,10 @@ class Hitem3DAPI:
 
     async def _authorized_headers(self) -> Dict[str, str]:
         token = await self._get_access_token()
-        return {"Authorization": f"Bearer {token}"}
+        return {
+            "Authorization": f"Bearer {token}",
+            "X-Device-Fingerprint": self.device_fp,
+        }
 
     async def _request(self, method: str, url: str, **kwargs) -> httpx.Response:
         headers = kwargs.pop("headers", {})

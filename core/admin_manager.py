@@ -1,5 +1,5 @@
 """
-Admin Control Panel Manager for ImageTo3D Pro
+Admin Control Panel Manager for Trivox AI Models
 
 Manages cloud model configs, user profiles, and usage tracking via Supabase.
 """

@@ -326,7 +326,7 @@ class CreditPurchaseDialog(QDialog):
         # The web server has the Razorpay API keys and creates a payment link
         # Desktop app calls the same endpoint the web frontend uses
         WEB_BASE = os.getenv(
-            "WEB_API_URL", "https://imageto3dpro-4f1j.onrender.com"
+            "WEB_API_URL", "https://trivoxaimodels-r5ip.onrender.com"
         ).rstrip("/api/v1").rstrip("/")
 
         create_link_url = f"{WEB_BASE}/api/razorpay/create-link"

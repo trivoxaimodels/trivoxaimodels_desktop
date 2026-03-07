@@ -1,5 +1,5 @@
 """
-Enhanced TripoSR integration for ImageTo3D Pro.
+Enhanced TripoSR integration for Trivox AI Models.
 Direct Python calls instead of subprocess for better control and error handling.
 """
 

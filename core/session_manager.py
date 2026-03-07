@@ -292,6 +292,110 @@ class SessionManager:
         return result
 
     # ═══════════════════════════════════════════════════════════
+    #  OAUTH LOGIN (Google/GitHub)
+    # ═══════════════════════════════════════════════════════════
+
+    def login_with_google(self) -> Dict[str, Any]:
+        """
+        Login using Google OAuth.
+        Opens browser for authentication, then syncs user.
+        """
+        try:
+            from core.oauth_manager import get_oauth_manager
+            oauth_mgr = get_oauth_manager()
+            result = oauth_mgr.login_with_google()
+
+            if result.get("success"):
+                user_id = str(result["user_id"])
+                balance_info = credit_manager.get_user_balance(user_id, self._device_fp)
+
+                self._session = UserSession(
+                    user_id=user_id,
+                    username=result.get("username"),
+                    email=result.get("email"),
+                    device_fingerprint=self._device_fp,
+                    credits_balance=balance_info.get("credits_balance", 0),
+                    trial_remaining=balance_info.get("trial_remaining", 0),
+                    trial_used=balance_info.get("trial_used", 0),
+                    is_authenticated=True,
+                    auth_method="google",
+                )
+                self._notify_session_change()
+                self.save_session()
+
+                return {
+                    "success": True,
+                    "user_id": user_id,
+                    "username": result.get("username"),
+                    "email": result.get("email"),
+                    "credits": balance_info.get("credits_balance", 0),
+                    "trial_remaining": balance_info.get("trial_remaining", 0),
+                }
+
+            return {
+                "success": False,
+                "error": result.get("error", "OAuth failed"),
+            }
+
+        except Exception as e:
+            print(f"Google OAuth failed: {e}")
+            return {
+                "success": False,
+                "error": "oauth_error",
+                "error_description": str(e),
+            }
+
+    def login_with_github(self) -> Dict[str, Any]:
+        """
+        Login using GitHub OAuth.
+        Opens browser for authentication, then syncs user.
+        """
+        try:
+            from core.oauth_manager import get_oauth_manager
+            oauth_mgr = get_oauth_manager()
+            result = oauth_mgr.login_with_github()
+
+            if result.get("success"):
+                user_id = str(result["user_id"])
+                balance_info = credit_manager.get_user_balance(user_id, self._device_fp)
+
+                self._session = UserSession(
+                    user_id=user_id,
+                    username=result.get("username"),
+                    email=result.get("email"),
+                    device_fingerprint=self._device_fp,
+                    credits_balance=balance_info.get("credits_balance", 0),
+                    trial_remaining=balance_info.get("trial_remaining", 0),
+                    trial_used=balance_info.get("trial_used", 0),
+                    is_authenticated=True,
+                    auth_method="github",
+                )
+                self._notify_session_change()
+                self.save_session()
+
+                return {
+                    "success": True,
+                    "user_id": user_id,
+                    "username": result.get("username"),
+                    "email": result.get("email"),
+                    "credits": balance_info.get("credits_balance", 0),
+                    "trial_remaining": balance_info.get("trial_remaining", 0),
+                }
+
+            return {
+                "success": False,
+                "error": result.get("error", "OAuth failed"),
+            }
+
+        except Exception as e:
+            print(f"GitHub OAuth failed: {e}")
+            return {
+                "success": False,
+                "error": "oauth_error",
+                "error_description": str(e),
+            }
+
+    # ═══════════════════════════════════════════════════════════
     #  SESSION MANAGEMENT
     # ═══════════════════════════════════════════════════════════
 
