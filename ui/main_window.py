@@ -798,11 +798,23 @@ class MainWindow(QMainWindow):
         return group
 
     def _create_sidebar_actions(self) -> QWidget:
-        """Create Log Out and Quit buttons."""
+        """Create History, Profile, Log Out and Quit buttons."""
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setSpacing(8)
         layout.setContentsMargins(0, 0, 0, 0)
+
+        # History Button
+        self.history_btn = QPushButton("📊 History")
+        self.history_btn.setObjectName("secondaryButton")
+        self.history_btn.setCursor(Qt.PointingHandCursor)
+        layout.addWidget(self.history_btn)
+
+        # Profile Button
+        self.profile_btn = QPushButton("👤 Profile")
+        self.profile_btn.setObjectName("secondaryButton")
+        self.profile_btn.setCursor(Qt.PointingHandCursor)
+        layout.addWidget(self.profile_btn)
 
         # Log Out Button
         self.logout_btn = QPushButton("🔒 Log Out")
@@ -1472,6 +1484,8 @@ class MainWindow(QMainWindow):
         # Action buttons
         self.reset_btn.clicked.connect(self._on_reset)
         self.generate_btn.clicked.connect(self._on_generate)
+        self.history_btn.clicked.connect(self._on_show_history)
+        self.profile_btn.clicked.connect(self._on_show_profile)
         self.logout_btn.clicked.connect(self._on_logout)
         self.quit_btn.clicked.connect(self.close)
 
@@ -2795,6 +2809,26 @@ class MainWindow(QMainWindow):
             auth_dialog = AuthDialog(self.session_manager)
             if auth_dialog.exec() == AuthDialog.Accepted:
                 self.show()
+
+    def _on_show_history(self):
+        """Show the history dialog."""
+        from ui.history_dialog import HistoryDialog
+        dialog = HistoryDialog(self)
+        dialog.exec()
+
+    def _on_show_profile(self):
+        """Show the profile dialog."""
+        from ui.profile_dialog import ProfileDialog
+        dialog = ProfileDialog(self)
+        # If user logged out from profile dialog, restart the app
+        if dialog.result() == ProfileDialog.Accepted:
+            # Check if session is still valid
+            if not self.session_manager.is_authenticated():
+                self.close()
+                from ui.auth_dialog import AuthDialog
+                auth_dialog = AuthDialog(self.session_manager)
+                if auth_dialog.exec() == AuthDialog.Accepted:
+                    self.show()
 
     def _add_log(self, message: str):
         """Add an entry to the activity log."""
