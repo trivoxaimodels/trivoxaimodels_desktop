@@ -59,9 +59,23 @@ def run_pipeline(
                 pass
 
     _report("init", 2, "Initializing model manager...")
-    manager = ModelManager()
+    manager = ModelManager(quality=quality)
 
+    _report("load_and_infer", 5, "Running AI background removal...")
+    
+    # Use rembg for better background removal (improves geometry accuracy)
+    # Only apply to image paths, not already-processed PIL images
+    if isinstance(image, str) and os.path.isfile(image):
+        processed_image = _remove_background_rembg(image)
+    else:
+        processed_image = image
+    
     t_infer_start = time.perf_counter()
+    _report(
+        "load_and_infer",
+        5,
+        "Loading image and running 3D inference (this is the longest stage)...",
+    )
     _report(
         "load_and_infer",
         5,
@@ -98,7 +112,8 @@ def run_pipeline(
     heartbeat_thread.start()
 
     try:
-        infer_result = manager.run(image)
+        # Use the image with background removed for better geometry
+        infer_result = manager.run(processed_image)
     finally:
         _infer_done.set()
         heartbeat_thread.join(timeout=2)
@@ -291,6 +306,72 @@ def _detect_background_and_dominant(arr_float):
         fg_color = arr_float.mean(axis=(0, 1))
 
     return bg_color, fg_color, fg_mask
+
+
+def _remove_background_rembg(image_or_path):
+    """
+    Remove background using AI-based rembg library for better accuracy.
+    Accepts either a file path (str) or a PIL Image object.
+    Returns the processed image path or PIL Image.
+    """
+    try:
+        import rembg
+        from PIL import Image
+        import numpy as np
+        
+        # Handle both path and PIL Image input
+        if isinstance(image_or_path, Image.Image):
+            input_image = image_or_path
+            input_path = None
+        else:
+            input_path = Path(image_or_path)
+            if not input_path.exists():
+                print(f"[Pipeline] Image not found: {image_or_path}, skipping background removal")
+                return image_or_path
+            input_image = Image.open(image_or_path)
+        
+        # Create output path for file input
+        if input_path:
+            output_path = input_path.parent / f"{input_path.stem}_nobg.png"
+            # Skip if already processed
+            if output_path.exists():
+                return str(output_path)
+        else:
+            output_path = None
+        
+        # Run background removal
+        print("[Pipeline] Removing background with AI (rembg)...")
+        session = rembg.new_session()
+        
+        # Remove background
+        output_image = rembg.remove(input_image, session=session)
+        
+        # Convert RGBA to RGB with white background for TripoSR compatibility
+        if output_image.mode == 'RGBA':
+            # Create white background
+            background = Image.new('RGB', output_image.size, (255, 255, 255))
+            # Composite RGBA over white
+            background.paste(output_image, mask=output_image.split()[3])  # Use alpha as mask
+            output_image = background
+        elif output_image.mode != 'RGB':
+            output_image = output_image.convert('RGB')
+        
+        # Save result if input was a path
+        if output_path:
+            output_image.save(str(output_path))
+            print(f"[Pipeline] Background removed: {output_path}")
+            return str(output_path)
+        else:
+            # Return the PIL Image if input was PIL Image
+            print("[Pipeline] Background removed (PIL Image)")
+            return output_image
+        
+    except ImportError:
+        print("[Pipeline] rembg not installed, using original image")
+        return image_or_path
+    except Exception as e:
+        print(f"[Pipeline] Background removal failed ({e}), using original image")
+        return image_or_path
 
 
 def _apply_vertex_colors_from_image(mesh, image_path):

@@ -35,6 +35,15 @@ class TripoSR:
     possible quality without crashing.
     """
 
+    # Quality to mc_resolution mapping (overrides RAM-based setting)
+    # Higher resolution = more detail but slower processing
+    QUALITY_RESOLUTION_MAP = {
+        "draft": 64,
+        "standard": 96,
+        "high": 128,
+        "production": 160,
+    }
+
     # RAM tier thresholds (in GB of *available* memory at init time)
     # mc_resolution controls marching cubes grid: 256³ = 16.7M points.
     # Memory budget ≈ TripoSR model (~3GB) + volume grid + MC extraction.
@@ -50,10 +59,11 @@ class TripoSR:
     ]
     _MIN_RAM_GB = 2.0  # absolute minimum to even attempt
 
-    def __init__(self, device: str | None = None):
+    def __init__(self, device: str | None = None, quality: str = "standard"):
         # Force CPU by default for maximum compatibility and to avoid native
         # CUDA / driver crashes (e.g. Windows exit code 0xC0000005).
         self.device = device or "cpu"
+        self.user_quality = quality  # Store user's quality preference
         
         # Initialize attributes with defaults (will be overwritten by _adapt_settings)
         self.mc_resolution = 128
@@ -79,33 +89,48 @@ class TripoSR:
             self._ensure_repo()
 
     def _adapt_settings(self) -> None:
-        """Dynamically choose processing parameters based on available RAM."""
+        """Dynamically choose processing parameters based on available RAM and user quality setting."""
+        # First, determine base settings from RAM
         available_gb = psutil.virtual_memory().available / (1024**3)
         self.available_gb = round(available_gb, 2)
 
+        # Get RAM-based tier settings
+        ram_mc_res = 128  # default
+        ram_chunk = 4096
+        ram_bake = False
+        ram_tex_res = 512
+        ram_threads = "2"
+        ram_tier_label = "unknown"
+
         for min_gb, mc_res, chunk, bake, tex_res, threads in self._TIERS:
             if available_gb >= min_gb:
-                self.mc_resolution = mc_res
-                self.chunk_size = chunk
-                self.bake_texture = bake
-                self.texture_resolution = tex_res
-                self._thread_count = threads
-                self._tier_label = f"{min_gb}GB+"
-                print(
-                    f"[TripoSR] RAM tier: {self._tier_label} "
-                    f"(available {available_gb:.1f}GB) => "
-                    f"mc_res={mc_res}, chunk={chunk}, threads={threads}, "
-                    f"texture={'ON' if bake else 'OFF'}"
-                )
-                return
+                ram_mc_res = mc_res
+                ram_chunk = chunk
+                ram_bake = bake
+                ram_tex_res = tex_res
+                ram_threads = threads
+                ram_tier_label = f"{min_gb}GB+"
+                break
 
-        # Below minimum — will be caught in generate()
-        self.mc_resolution = 64
-        self.chunk_size = 2048
-        self.bake_texture = False
-        self.texture_resolution = 256
-        self._thread_count = "1"
-        self._tier_label = "below_minimum"
+        # Now override with user quality setting if specified
+        quality_mc_res = self.QUALITY_RESOLUTION_MAP.get(self.user_quality, 96)
+        
+        # Use the higher of RAM-based or quality-based resolution
+        # (user quality takes priority for those who want better quality)
+        self.mc_resolution = max(quality_mc_res, ram_mc_res)
+        self.chunk_size = ram_chunk
+        self.bake_texture = ram_bake
+        self.texture_resolution = ram_tex_res
+        self._thread_count = ram_threads
+        
+        # Show both RAM tier and quality setting in label
+        self._tier_label = f"{ram_tier_label}+{self.user_quality}"
+        print(
+            f"[TripoSR] RAM tier: {self._tier_label} "
+            f"(available {available_gb:.1f}GB, quality={self.user_quality}) => "
+            f"mc_res={self.mc_resolution}, chunk={ram_chunk}, threads={ram_threads}, "
+            f"texture={'ON' if ram_bake else 'OFF'}"
+        )
 
     def _check_memory_availability(self) -> tuple[bool, float]:
         """Return (ok, available_gb)."""

@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoxelCraft 3D Viewer</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/RGBELoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #0f172a;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #e2e8f0;
+        }
+
+        #viewer-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        #toolbar {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            z-index: 100;
+            display: flex;
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.85);
+            padding: 8px 12px;
+            border-radius: 10px;
+            border: 1px solid #1e3a5f;
+            backdrop-filter: blur(10px);
+        }
+
+        .toolbar-btn {
+            padding: 8px 14px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .toolbar-btn:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        .toolbar-btn:active {
+            transform: translateY(0);
+        }
+
+        .toolbar-btn.active {
+            background: #22c55e;
+        }
+
+        .toolbar-btn.secondary {
+            background: #374151;
+        }
+
+        .toolbar-btn.secondary:hover {
+            background: #4b5563;
+        }
+
+        #info-panel {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            background: rgba(15, 23, 42, 0.85);
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: 1px solid #1e3a5f;
+            backdrop-filter: blur(10px);
+            font-size: 12px;
+            min-width: 180px;
+        }
+
+        #info-panel h4 {
+            color: #60a5fa;
+            margin-bottom: 8px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            color: #94a3b8;
+        }
+
+        .info-row span:last-child {
+            color: #e2e8f0;
+            font-weight: 500;
+        }
+
+        #loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0f172a;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            transition: opacity 0.4s ease;
+        }
+
+        #loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #1e3a5f;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        #loading-text {
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        #error-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0f172a;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 300;
+            padding: 20px;
+            text-align: center;
+        }
+
+        #error-overlay.visible {
+            display: flex;
+        }
+
+        .error-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        #error-overlay h3 {
+            color: #f87171;
+            margin-bottom: 8px;
+        }
+
+        #error-overlay p {
+            color: #94a3b8;
+            max-width: 400px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="viewer-container">
+        <div id="canvas-container"></div>
+
+        <div id="toolbar">
+            <button class="toolbar-btn" id="btn-rotate" onclick="toggleRotate()">
+                <span>🔄</span> Auto Rotate
+            </button>
+            <button class="toolbar-btn" id="btn-reset" onclick="resetCamera()">
+                <span>🎯</span> Reset View
+            </button>
+            <button class="toolbar-btn secondary" onclick="takeScreenshot()">
+                <span>📸</span> Screenshot
+            </button>
+        </div>
+
+        <div id="info-panel">
+            <h4>Model Info</h4>
+            <div class="info-row">
+                <span>Vertices:</span>
+                <span id="info-vertices">-</span>
+            </div>
+            <div class="info-row">
+                <span>Faces:</span>
+                <span id="info-faces">-</span>
+            </div>
+            <div class="info-row">
+                <span>Size:</span>
+                <span id="info-size">-</span>
+            </div>
+        </div>
+
+        <div id="loading-overlay">
+            <div class="loader"></div>
+            <div id="loading-text">Loading model...</div>
+        </div>
+
+        <div id="error-overlay">
+            <div class="error-icon">⚠️</div>
+            <h3>WebGL Not Available</h3>
+            <p>Your browser doesn't support WebGL, which is required for 3D rendering. Please try a different browser or
+                enable hardware acceleration.</p>
+        </div>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const modelUrl = decodeURIComponent(params.get("model") || "");
+
+        // Debug: Show what's happening
+        console.log("Full URL:", window.location.href);
+        console.log("Model URL param:", modelUrl);
+
+        if (!modelUrl) {
+            document.getElementById('loading-text').textContent = 'No model specified. URL: ' + window.location.href;
+        }
+
+        let scene, camera, renderer, controls, model;
+        let isRotating = false;
+
+        function checkWebGL() {
+            try {
+                const canvas = document.createElement('canvas');
+                return !!(window.WebGLRenderingContext &&
+                    (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function init() {
+            if (!checkWebGL()) {
+                document.getElementById('loading-overlay').classList.add('hidden');
+                document.getElementById('error-overlay').classList.add('visible');
+                return;
+            }
+
+            const container = document.getElementById('canvas-container');
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0f172a);
+
+            camera = new THREE.PerspectiveCamera(
+                45,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                1000
+            );
+
+            renderer = new THREE.WebGLRenderer({
+                antialias: true,
+                preserveDrawingBuffer: true,
+                alpha: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.physicallyCorrectLights = true;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.08;
+            controls.screenSpacePanning = false;
+            controls.minDistance = 0.5;
+            controls.maxDistance = 50;
+            controls.autoRotate = false;
+            controls.autoRotateSpeed = 2.0;
+
+            camera.position.set(0, 1, 3);
+            controls.update();
+
+            setupLights();
+            loadHDREnvironment();
+
+            if (modelUrl) {
+                loadModel(modelUrl);
+            } else {
+                document.getElementById('loading-overlay').classList.add('hidden');
+            }
+
+            animate();
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function setupLights() {
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+            hemiLight.position.set(0, 20, 0);
+            scene.add(hemiLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            dirLight.position.set(5, 10, 7);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            const fillLight = new THREE.DirectionalLight(0x8888ff, 0.5);
+            fillLight.position.set(-5, 0, -5);
+            scene.add(fillLight);
+
+            const rimLight = new THREE.DirectionalLight(0xff8844, 0.3);
+            rimLight.position.set(0, -5, -10);
+            scene.add(rimLight);
+        }
+
+        function loadHDREnvironment() {
+            new THREE.RGBELoader()
+                .load(
+                    "https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/equirectangular/royal_esplanade_1k.hdr",
+                    function (texture) {
+                        texture.mapping = THREE.EquirectangularReflectionMapping;
+                        scene.environment = texture;
+                        scene.background = new THREE.Color(0x0f172a);
+                    },
+                    undefined,
+                    function (err) {
+                        console.warn('HDR load failed, using fallback lighting:', err);
+                    }
+                );
+        }
+
+        function loadModel(url) {
+            const loader = new THREE.GLTFLoader();
+
+            loader.load(
+                url,
+                function (gltf) {
+                    model = gltf.scene;
+
+                    const box = new THREE.Box3().setFromObject(model);
+                    const size = box.getSize(new THREE.Vector3());
+                    const center = box.getCenter(new THREE.Vector3());
+                    const maxDim = Math.max(size.x, size.y, size.z);
+
+                    model.position.sub(center);
+
+                    scene.add(model);
+
+                    const fitDistance = maxDim * 2.5;
+                    const direction = new THREE.Vector3(1, 0.8, 1).normalize();
+                    camera.position.copy(center).add(direction.multiplyScalar(fitDistance));
+                    camera.lookAt(center);
+
+                    controls.target.copy(center);
+                    controls.maxDistance = maxDim * 15;
+                    camera.near = maxDim / 100;
+                    camera.far = maxDim * 100;
+                    camera.updateProjectionMatrix();
+                    controls.update();
+
+                    updateModelInfo(model, size);
+
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                },
+                function (xhr) {
+                    const percent = (xhr.loaded / xhr.total * 100).toFixed(0);
+                    document.getElementById('loading-text').textContent = `Loading... ${percent}%`;
+                },
+                function (error) {
+                    console.error('Error loading model:', error);
+                    document.getElementById('loading-text').textContent = 'Error loading model';
+                    setTimeout(() => {
+                        document.getElementById('loading-overlay').classList.add('hidden');
+                    }, 2000);
+                }
+            );
+        }
+
+        function updateModelInfo(modelObj, size) {
+            let vertices = 0;
+            let faces = 0;
+
+            modelObj.traverse(function (child) {
+                if (child.isMesh) {
+                    const geometry = child.geometry;
+                    if (geometry.attributes.position) {
+                        vertices += geometry.attributes.position.count;
+                    }
+                    if (geometry.index) {
+                        faces += geometry.index.count / 3;
+                    } else if (geometry.attributes.position) {
+                        faces += geometry.attributes.position.count / 3;
+                    }
+                }
+            });
+
+            document.getElementById('info-vertices').textContent = vertices.toLocaleString();
+            document.getElementById('info-faces').textContent = faces.toLocaleString();
+
+            const sizeMB = (size.x * size.y * size.z / 1000000).toFixed(2);
+            document.getElementById('info-size').textContent = `${size.x.toFixed(2)} × ${size.y.toFixed(2)} × ${size.z.toFixed(2)}`;
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function toggleRotate() {
+            isRotating = !isRotating;
+            controls.autoRotate = isRotating;
+
+            const btn = document.getElementById('btn-rotate');
+            if (isRotating) {
+                btn.classList.add('active');
+                btn.innerHTML = '<span>⏸</span> Stop Rotate';
+            } else {
+                btn.classList.remove('active');
+                btn.innerHTML = '<span>🔄</span> Auto Rotate';
+            }
+        }
+
+        function resetCamera() {
+            if (!model) return;
+
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+
+            const fitDistance = maxDim * 2.5;
+            const direction = new THREE.Vector3(1, 0.8, 1).normalize();
+
+            camera.position.copy(center).add(direction.multiplyScalar(fitDistance));
+            camera.lookAt(center);
+            controls.target.copy(center);
+            controls.update();
+        }
+
+        function takeScreenshot() {
+            renderer.render(scene, camera);
+
+            const link = document.createElement('a');
+            link.download = 'voxelcraft_model.png';
+            link.href = renderer.domElement.toDataURL('image/png', 1.0);
+            link.click();
+        }
+
+        init();
+    </script>
+
+</body>
+
+</html>

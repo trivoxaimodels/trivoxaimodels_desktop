@@ -1,32 +1,88 @@
-Trivox Models Desktop Application
+Voxel Craft Desktop Application
 Software License Agreement
 
-Copyright (c) 2024 Trivox Models. All rights reserved.
+Copyright (c) 2024-2026 Voxel Craft. All rights reserved.
+
+IMPORTANT: THIS SOFTWARE IS PROVIDED FOR USE BY AUTHORIZED USERS ONLY. 
+BY INSTALLING, COPYING, OR OTHERWISE USING THIS SOFTWARE, YOU AGREE TO 
+BE BOUND BY THE TERMS OF THIS LICENSE AGREEMENT.
 
 GRANT OF LICENSE
-This license agreement grants you the right to use Trivox Models Desktop Application 
-for personal or commercial purposes, subject to the terms below.
+This license agreement grants you the right to use Voxel Craft Desktop 
+Application for personal or commercial purposes, subject to the terms and 
+conditions below. This is a proprietary software product and is protected 
+by copyright laws and international treaty provisions.
+
+ACCEPTABLE USE
+You agree to use this software only for lawful purposes and in accordance 
+with this license. You may not use this software in any manner that could 
+damage, disable, overburden, or impair our services or systems.
 
 RESTRICTIONS
 You may not:
-- Reverse engineer, decompile, or disassemble this software
-- Rent, lease, or lend the software to third parties
-- Remove or alter any proprietary notices
+- Reverse engineer, decompile, disassemble, or attempt to derive the 
+  source code of this software
+- Rent, lease, loan, or sublicense the software to third parties
+- Remove, alter, or obscure any proprietary notices or labels
+- Bypass, modify, or circumvent any security measures, authentication 
+  systems, or copy protection mechanisms
+- Use the software to develop derivative works or competing products
+- Attempt to gain unauthorized access to any systems, networks, or data
+- Use the software for any illegal purpose or in violation of any laws
+
+SECURITY AND DATA PROTECTION
+
+This software implements security measures to protect the application 
+and user data:
+
+- API keys for third-party encrypted and stored securely services are
+- Device fingerprinting is used for authentication and session management
+- User data and generated models are stored in protected locations
+- Network communications use encryption (HTTPS/TLS)
+- OAuth 2.0 flows are implemented with secure token handling
+- Payment processing uses secure third-party gateways
+- Code obfuscation and compilation protections may be applied
+
+THIRD-PARTY SERVICES
+
+This software integrates with third-party services for 3D model generation:
+- Tripo3D API, Meshy AI API, Neural4D API, Hitem3D API
+- Supabase (database and authentication)
+- Razorpay (payment processing)
+
+Each third-party service has its own terms of service and privacy policies.
 
 DISCLAIMER
-THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, 
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES 
-OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS 
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. THE ENTIRE RISK 
+AS TO THE QUALITY AND PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
 
 LIMITATION OF LIABILITY
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY 
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, 
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE 
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+IN NO EVENT SHALL THE AUTHORS, COPYRIGHT HOLDERS, OR Voxel Craft BE LIABLE 
+FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF 
+CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH 
+THE SOFTWARE OR THE USE OR INABILITY TO USE THE SOFTWARE.
 
-Third-Party Licenses
-This software uses third-party libraries which are subject to their own licenses:
-- PySide6 (LGPL)
-- Tripo3D SDK
-- Supabase Client
-- And other open-source libraries as listed in requirements.txt
+INDEMNIFICATION
+You agree to indemnify, defend, and hold harmless Voxel Craft and its 
+affiliates from any claims arising out of your use of the software in 
+violation of this agreement or applicable laws.
+
+TERMINATION
+This license terminates automatically if you fail to comply with any 
+term of this agreement. Upon termination, you must immediately stop using 
+the software and destroy all copies in your possession.
+
+GOVERNING LAW
+This agreement shall be governed by applicable laws.
+
+THIRD-PARTY LICENSES
+This software uses libraries subject to their own licenses:
+- PySide6 (LGPL), Nuitka (Apache 2.0), Supabase Client (MIT)
+- Other open-source libraries as listed in requirements.txt
+
+CONTACT INFORMATION
+Email: support@voxelcraft.ai | Website: https://voxelcraft.ai
+
+Last Updated: March 2026

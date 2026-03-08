@@ -46,9 +46,11 @@ def main():
     os.environ["QT_OPENGL"] = "software"
     QCoreApplication.setAttribute(Qt.AA_UseSoftwareOpenGL)
     
-    # Disable Chromium GPU acceleration to fix startup crashes on some machines
-    # (Fixes "D3D11 smoke test failed" and EGL context errors)
-    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu --disable-gpu-compositing"
+    # Use software rendering for WebEngine to ensure compatibility on all systems
+    # This avoids D3D11/EGL errors on virtual machines and incompatible GPU drivers
+    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--ignore-gpu-blocklist --enable-webgl --use-angle=swiftshader --disable-gpu"
+    os.environ["QTWEBENGINE_DISABLE_SANDBOX"] = "1"
+    os.environ["QT_OPENGL"] = "software"
     
     # Enable high DPI scaling
     QApplication.setHighDpiScaleFactorRoundingPolicy(

@@ -20,6 +20,18 @@ from . import credit_manager
 from . import server_auth
 
 
+# Global session manager instance
+_session_manager: Optional['SessionManager'] = None
+
+
+def get_session_manager() -> 'SessionManager':
+    """Get or create the global session manager instance."""
+    global _session_manager
+    if _session_manager is None:
+        _session_manager = SessionManager()
+    return _session_manager
+
+
 @dataclass
 class UserSession:
     """User session data."""
