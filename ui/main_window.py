@@ -43,7 +43,21 @@ from PySide6.QtWidgets import (
     QGraphicsDropShadowEffect,
 )
 from PySide6.QtCore import Qt, QThread, Signal, QTimer, QSize, QSettings, QUrl
-from PySide6.QtWebEngineWidgets import QWebEngineView
+# Import WebEngine lazily to avoid crashes in environments without GPU/WebGL support
+QWebEngineView = None
+
+def _get_webengine_view():
+    """Lazily import and return QWebEngineView, or None if not available."""
+    global QWebEngineView
+    if QWebEngineView is None:
+        try:
+            from PySide6.QtWebEngineWidgets import QWebEngineView as QEV
+            QWebEngineView = QEV
+        except Exception as e:
+            print(f"Failed to import QWebEngineView: {e}")
+            QWebEngineView = None
+    return QWebEngineView
+
 from PySide6.QtGui import (
     QPixmap,
     QFont,
@@ -1659,8 +1673,20 @@ class MainWindow(QMainWindow):
         </html>
         """
 
-        self.gen_webview = QWebEngineView()
-        self.gen_webview.setHtml(gen_html)
+        # Try to create WebEngineView, fall back to Label if it fails (e.g., no WebGL in VM)
+        try:
+            WebEngineClass = _get_webengine_view()
+            if WebEngineClass is None:
+                raise Exception("WebEngine not available")
+            self.gen_webview = WebEngineClass()
+            self.gen_webview.setHtml(gen_html)
+            self._webengine_available = True
+        except Exception as e:
+            print(f"WebEngine not available, using fallback: {e}")
+            self.gen_webview = QLabel("Generation preview not available (WebGL required)")
+            self.gen_webview.setAlignment(Qt.AlignCenter)
+            self._webengine_available = False
+        
         self.generation_overlay_layout = QVBoxLayout(self.generation_overlay)
         self.generation_overlay_layout.setContentsMargins(0, 0, 0, 0)
         self.generation_overlay_layout.addWidget(self.gen_webview)
@@ -1670,20 +1696,33 @@ class MainWindow(QMainWindow):
         # State 3: 3D Model Viewer (after generation)
         from PySide6.QtWebEngineCore import QWebEngineSettings
 
-        self.model_viewer = QWebEngineView()
-        self.model_viewer.settings().setAttribute(
-            QWebEngineSettings.LocalContentCanAccessFileUrls, True
-        )
-        self.model_viewer.setObjectName("modelViewer")
-        self.model_viewer.setMinimumHeight(320)
-        self.model_viewer.setVisible(False)
+        # Try to create model viewer, fall back to Label if it fails
+        try:
+            WebEngineClass = _get_webengine_view()
+            if WebEngineClass is None:
+                raise Exception("WebEngine not available")
+            self.model_viewer = WebEngineClass()
+            self.model_viewer.settings().setAttribute(
+                QWebEngineSettings.LocalContentCanAccessFileUrls, True
+            )
+            self.model_viewer.setObjectName("modelViewer")
+            self.model_viewer.setMinimumHeight(320)
+            self.model_viewer.setVisible(False)
 
-        # Initial empty state for viewer
-        self.model_viewer.setHtml("""
-        <html><body style="background:#0f172a; color:#64748b; font-family:sans-serif; display:flex; justify-content:center; align-items:center; height:100vh; margin:0;">
-        <div style="text-align:center;">Generate a 3D model to view it here</div>
-        </body></html>
-        """)
+            # Initial empty state for viewer
+            self.model_viewer.setHtml("""
+            <html><body style="background:#0f172a; color:#64748b; font-family:sans-serif; display:flex; justify-content:center; align-items:center; height:100vh; margin:0;">
+            <div style="text-align:center;">Generate a 3D model to view it here</div>
+            </body></html>
+            """)
+            self._model_viewer_available = True
+        except Exception as e:
+            print(f"Model viewer WebEngine not available, using fallback: {e}")
+            self.model_viewer = QLabel("3D Viewer not available (WebGL required)")
+            self.model_viewer.setAlignment(Qt.AlignCenter)
+            self.model_viewer.setMinimumHeight(320)
+            self.model_viewer.setStyleSheet("background:#0f172a; color:#64748b;")
+            self._model_viewer_available = False
 
         container_layout.addWidget(self.model_viewer)
 
@@ -1836,19 +1875,32 @@ class MainWindow(QMainWindow):
         # 3D Viewer Area
         from PySide6.QtWebEngineCore import QWebEngineSettings
 
-        self.model_viewer = QWebEngineView()
-        self.model_viewer.settings().setAttribute(
-            QWebEngineSettings.LocalContentCanAccessFileUrls, True
-        )
-        self.model_viewer.setObjectName("modelViewer")
-        self.model_viewer.setMinimumHeight(400)
+        # Try to create model viewer with lazy loading
+        try:
+            WebEngineClass = _get_webengine_view()
+            if WebEngineClass is None:
+                raise Exception("WebEngine not available")
+            self.model_viewer = WebEngineClass()
+            self.model_viewer.settings().setAttribute(
+                QWebEngineSettings.LocalContentCanAccessFileUrls, True
+            )
+            self.model_viewer.setObjectName("modelViewer")
+            self.model_viewer.setMinimumHeight(400)
 
-        # Initial empty logic
-        self.model_viewer.setHtml("""
-        <html><body style="background:#0f172a; color:#64748b; font-family:sans-serif; display:flex; justify-content:center; align-items:center; height:100%; margin:0;">
-        <div style="text-align:center;">Generate a 3D model to view it here</div>
-        </body></html>
-        """)
+            # Initial empty logic
+            self.model_viewer.setHtml("""
+            <html><body style="background:#0f172a; color:#64748b; font-family:sans-serif; display:flex; justify-content:center; align-items:center; height:100%; margin:0;">
+            <div style="text-align:center;">Generate a 3D model to view it here</div>
+            </body></html>
+            """)
+            self._model_viewer_available = True
+        except Exception as e:
+            print(f"Model viewer WebEngine not available, using fallback: {e}")
+            self.model_viewer = QLabel("3D Viewer not available (WebGL required)\n\nPlease run on a system with WebGL support.")
+            self.model_viewer.setAlignment(Qt.AlignCenter)
+            self.model_viewer.setMinimumHeight(400)
+            self.model_viewer.setStyleSheet("background:#0f172a; color:#64748b;")
+            self._model_viewer_available = False
 
         layout.addWidget(self.model_viewer, 1)
 

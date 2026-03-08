@@ -16,6 +16,11 @@ import sys
 import os
 from pathlib import Path
 
+# Force software OpenGL for Qt WebEngine compatibility on various drivers and VMs
+os.environ["QT_OPENGL"] = "software"
+os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu --disable-software-rasterizer --disable-gpu-compositing --disable-gpu-sandbox --use-gl=swiftshader --enable-webgl=0 --ignore-gpu-blocklist --no-sandbox"
+os.environ["QTWEBENGINE_DISABLE_SANDBOX"] = "1"
+
 # Ensure project root is on sys.path
 ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
@@ -70,21 +75,15 @@ def register_uri_scheme():
 
 def main():
     """Main entry point for the desktop application."""
-    from PySide6.QtCore import Qt, QCoreApplication
-    
-    # Enable WebGL and hardware acceleration for better performance
-    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--ignore-gpu-blocklist --enable-webgl"
-    os.environ["QTWEBENGINE_DISABLE_SANDBOX"] = "1"
-    
     # Enable high DPI scaling
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
     
     app = QApplication(sys.argv)
-    app.setApplicationName("Trivox Models")
+    app.setApplicationName("Voxel Craft")
     app.setApplicationVersion("1.0.0")
-    app.setOrganizationName("Trivox Models")
+    app.setOrganizationName("Voxel Craft")
     
     # Establish single instance mechanism
     from PySide6.QtNetwork import QLocalServer, QLocalSocket
@@ -132,28 +131,50 @@ def main():
             app.setStyleSheet(f.read())
     
     # Initialize session manager
+    print("DEBUG: Initializing session manager...", flush=True)
     session_manager = SessionManager()
+    print("DEBUG: Session manager initialized", flush=True)
     
     # Initialize payment sync
+    print("DEBUG: Initializing payment sync...", flush=True)
     from core.payment_config_sync import initialize_payment_sync
     initialize_payment_sync()
+    print("DEBUG: Payment sync initialized", flush=True)
     
     # If not authenticated via saved session, try automatic device login 
+    print("DEBUG: Checking authentication...", flush=True)
     if not session_manager.is_authenticated:
+        print("DEBUG: Not authenticated, attempting device login...", flush=True)
         # This will sign in with device fingerprint (the default flow)
         session_manager.login_with_device()
+    print("DEBUG: Authentication check complete", flush=True)
     
     # Only show authentication dialog if we're still not authenticated
     # or if the user needs to switch accounts (handled inside the app)
     if not session_manager.is_authenticated:
+        print("DEBUG: Showing auth dialog...", flush=True)
         auth_dialog = AuthDialog(session_manager)
         if auth_dialog.exec() != AuthDialog.Accepted:
             sys.exit(0)
+    print("DEBUG: Auth dialog complete", flush=True)
     
     # Create and show main window
-    main_window = MainWindow(session_manager)
-    app.main_window = main_window
-    main_window.show()
+    print("DEBUG: Creating main window...", flush=True)
+    try:
+        main_window = MainWindow(session_manager)
+        app.main_window = main_window
+        main_window.show()
+    except Exception as e:
+        import traceback
+        print(f"ERROR creating main window: {e}", flush=True)
+        traceback.print_exc()
+        # Try to show error in a simple dialog
+        from PySide6.QtWidgets import QMessageBox
+        error_dialog = QMessageBox()
+        error_dialog.setWindowTitle("Error")
+        error_dialog.setText(f"Failed to create main window: {e}\n\nThe app may not work properly in this environment.")
+        error_dialog.exec()
+    print("DEBUG: Main window shown", flush=True)
     
     sys.exit(app.exec())
 
