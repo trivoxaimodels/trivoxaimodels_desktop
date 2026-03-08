@@ -86,6 +86,37 @@ def main():
     app.setApplicationVersion("1.0.0")
     app.setOrganizationName("Trivox Models")
     
+    # Establish single instance mechanism
+    from PySide6.QtNetwork import QLocalServer, QLocalSocket
+    app_id = "VoxelCraftApp_SingleInstance"
+    
+    socket = QLocalSocket()
+    socket.connectToServer(app_id)
+    if socket.waitForConnected(500):
+        # A previous instance is already running
+        msg = "URI:" + (" ".join(sys.argv[1:]) if len(sys.argv) > 1 else "activate")
+        socket.write(msg.encode("utf-8"))
+        socket.waitForBytesWritten(500)
+        sys.exit(0)
+    
+    # We are the primary instance
+    server = QLocalServer()
+    QLocalServer.removeServer(app_id)
+    server.listen(app_id)
+    
+    def on_new_connection():
+        conn = server.nextPendingConnection()
+        if conn.waitForReadyRead(500):
+            msg = conn.readAll().data().decode("utf-8")
+            if hasattr(app, 'main_window') and app.main_window:
+                # Force window to foreground
+                mw = app.main_window
+                mw.setWindowState(mw.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
+                mw.raise_()
+                mw.activateWindow()
+    
+    server.newConnection.connect(on_new_connection)
+    
     # Set application icon
     icon_path = get_resource_path("assets/logo/logo.ico")
     if os.path.exists(icon_path):
@@ -121,6 +152,7 @@ def main():
     
     # Create and show main window
     main_window = MainWindow(session_manager)
+    app.main_window = main_window
     main_window.show()
     
     sys.exit(app.exec())
