@@ -529,7 +529,10 @@ class MainWindow(QMainWindow):
 
     def __init__(self, session_manager: SessionManager):
         super().__init__()
-
+        
+        # Import Path at the top since we use it early
+        from pathlib import Path
+        
         self.session_manager = session_manager
         self.selected_file: Optional[str] = None
         self.output_dir = Path.home() / "VoxelCraft" / "outputs"
