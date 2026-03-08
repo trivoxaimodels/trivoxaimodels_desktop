@@ -20,6 +20,7 @@ from pathlib import Path
 os.environ["QT_OPENGL"] = "software"
 os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu --disable-software-rasterizer --disable-gpu-compositing --disable-gpu-sandbox --use-gl=swiftshader --enable-webgl=0 --ignore-gpu-blocklist --no-sandbox"
 os.environ["QTWEBENGINE_DISABLE_SANDBOX"] = "1"
+os.environ["LIBVA_DRIVER_NAME"] = "iHD"  # Intel Media SDK driver
 
 # Ensure project root is on sys.path
 ROOT = Path(__file__).resolve().parent
