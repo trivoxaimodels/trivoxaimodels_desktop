@@ -32,7 +32,7 @@ class ProfileDialog(QDialog):
         self.setMinimumSize(450, 500)
         self._session_manager = get_session_manager()
         
-        if not self._session_manager or not self._session_manager.is_authenticated():
+        if not self._session_manager or not self._session_manager.is_authenticated:
             QMessageBox.warning(self, "Not Logged In", "Please log in to view profile.")
             self.reject()
             return

@@ -34,7 +34,7 @@ class HistoryDialog(QDialog):
         self.setWindowTitle("History - Voxel Craft")
         self.setMinimumSize(900, 600)
         self._session_manager = get_session_manager()
-        self._user_id = self._session_manager.get_user_id() if self._session_manager else None
+        self._user_id = self._session_manager.user_id if self._session_manager else None
         
         if not self._user_id:
             QMessageBox.warning(self, "Not Logged In", "Please log in to view history.")

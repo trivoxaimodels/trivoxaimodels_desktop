@@ -36,6 +36,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QSpacerItem,
     QGridLayout,
+    QLayout,
     QScrollArea,
     QCheckBox,
     QDialog,
@@ -50,6 +51,7 @@ from PySide6.QtGui import (
     QDropEvent,
     QColor,
     QFocusEvent,
+    QIcon,
 )
 
 # Add parent directory to path
@@ -542,9 +544,22 @@ class MainWindow(QMainWindow):
         self._current_model: str = "local"
         self._current_quality: str = "standard"
 
-        self.setWindowTitle("Image → 3D Pro")
+        self.setWindowTitle("Voxel Craft")
         self.setMinimumSize(1200, 800)
         self.resize(1400, 900)
+        
+        # Set window icon
+        import sys
+        from pathlib import Path
+        try:
+            if hasattr(sys, '_MEIPASS'):
+                icon_path = Path(sys._MEIPASS) / "assets" / "logo" / "logo.ico"
+            else:
+                icon_path = Path(__file__).parent.parent / "assets" / "logo" / "logo.ico"
+            if icon_path.exists():
+                self.setWindowIcon(QIcon(str(icon_path)))
+        except Exception as e:
+            print(f"Could not load window icon: {e}")
 
         self._setup_ui()
         self._setup_connections()
@@ -622,27 +637,33 @@ class MainWindow(QMainWindow):
         """Create the logo and title section."""
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        layout.setSpacing(4)
+        layout.setSpacing(8)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setAlignment(Qt.AlignCenter)
 
-        # Logo and Title
-        title_layout = QHBoxLayout()
-        title_layout.setSpacing(8)
+        # Logo Image
+        logo_label = QLabel()
+        logo_pixmap = QPixmap("I:\\TrivoxAIModels_Desktop\\assets\\logo\\logo.png")
+        if not logo_pixmap.isNull():
+            logo_pixmap = logo_pixmap.scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            logo_label.setPixmap(logo_pixmap)
+            logo_label.setAlignment(Qt.AlignCenter)
+        else:
+            logo_label.setText("🧠")
+            logo_label.setStyleSheet("font-size: 48px;")
+            logo_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(logo_label)
 
-        brain_icon = QLabel("🧠")
-        brain_icon.setStyleSheet("font-size: 24px;")
-        title_layout.addWidget(brain_icon)
-
-        title_text = QLabel("Image → 3D Pro")
-        title_text.setStyleSheet("font-size: 18px; font-weight: bold; color: #e2e8f0;")
-        title_layout.addWidget(title_text)
-        title_layout.addStretch()
-
-        layout.addLayout(title_layout)
+        # Title
+        title_text = QLabel("Voxel Craft")
+        title_text.setStyleSheet("font-size: 20px; font-weight: bold; color: #60a5fa;")
+        title_text.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title_text)
 
         # Version
         version = QLabel("v2.1.0")
-        version.setStyleSheet("font-size: 11px; color: #64748b; padding-left: 32px;")
+        version.setStyleSheet("font-size: 11px; color: #64748b;")
+        version.setAlignment(Qt.AlignCenter)
         layout.addWidget(version)
 
         return widget
@@ -832,16 +853,15 @@ class MainWindow(QMainWindow):
 
     def _create_content_area(self) -> QWidget:
         """Create the main content area with all sections."""
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll.setObjectName("contentScroll")
-
+        # Use a regular widget instead of QScrollArea to avoid scrolling issues
         content = QWidget()
         content.setObjectName("contentWidget")
+        
+        # Use vertical layout that stretches to fill available space
         layout = QVBoxLayout(content)
         layout.setSpacing(20)
         layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSizeConstraint(QLayout.SetMinimumSize)
 
         # Top Row: SOURCE + PROCESSING
         top_row = QHBoxLayout()
@@ -875,14 +895,12 @@ class MainWindow(QMainWindow):
         actions_section = self._create_action_buttons()
         layout.addWidget(actions_section)
 
-        # OUTPUTS Section
-        outputs_section = self._create_outputs_section()
-        layout.addWidget(outputs_section)
+        # Add stretch at the end to push content to top and fill vertical space
+        layout.addStretch()
 
         # Activity log is now inside PROGRESS section
 
-        scroll.setWidget(content)
-        return scroll
+        return content
 
     def _create_source_section(self) -> QGroupBox:
         """Create the SOURCE section with Image/Text tabs and file selection."""
@@ -949,6 +967,71 @@ class MainWindow(QMainWindow):
         self.negative_prompt.setObjectName("fileInput")  # Reuse styling
         text_layout.addWidget(self.negative_prompt)
 
+        # Text-to-3D Generation Settings
+        text_settings_frame = QFrame()
+        text_settings_frame.setStyleSheet("""
+            QFrame {
+                background-color: #1e293b;
+                border: 1px solid #334155;
+                border-radius: 8px;
+                padding: 12px;
+            }
+        """)
+        text_settings_layout = QVBoxLayout(text_settings_frame)
+        text_settings_layout.setSpacing(10)
+        text_settings_layout.setContentsMargins(12, 12, 12, 12)
+
+        settings_label = QLabel("⚙️ Generation Settings")
+        settings_label.setStyleSheet("color: #94a3b8; font-size: 12px; font-weight: 600;")
+        text_settings_layout.addWidget(settings_label)
+
+        # Quality and Format row
+        settings_row = QHBoxLayout()
+        settings_row.setSpacing(12)
+
+        # Quality
+        quality_container = QVBoxLayout()
+        quality_label = QLabel("Quality")
+        quality_label.setStyleSheet("color: #64748b; font-size: 11px;")
+        quality_container.addWidget(quality_label)
+
+        self.text_quality_combo = QComboBox()
+        self.text_quality_combo.setObjectName("textQualityCombo")
+        self.text_quality_combo.addItem("Standard (512)", "512")
+        self.text_quality_combo.addItem("High (1024)", "1024")
+        self.text_quality_combo.addItem("Ultra (2048)", "2048")
+        self.text_quality_combo.setCurrentText("High (1024)")
+        quality_container.addWidget(self.text_quality_combo)
+        settings_row.addLayout(quality_container, 1)
+
+        # Format
+        fmt_container = QVBoxLayout()
+        format_label = QLabel("Format")
+        format_label.setStyleSheet("color: #64748b; font-size: 11px;")
+        fmt_container.addWidget(format_label)
+
+        self.text_format_combo = QComboBox()
+        self.text_format_combo.setObjectName("textFormatCombo")
+        self.text_format_combo.addItem("GLB", "glb")
+        self.text_format_combo.addItem("OBJ", "obj")
+        self.text_format_combo.addItem("FBX", "fbx")
+        self.text_format_combo.addItem("STL", "stl")
+        self.text_format_combo.addItem("USDZ", "usdz")
+        self.text_format_combo.setCurrentText("GLB")
+        fmt_container.addWidget(self.text_format_combo)
+        settings_row.addLayout(fmt_container, 1)
+
+        text_settings_layout.addLayout(settings_row)
+
+        # Info text
+        info_label = QLabel(
+            "ℹ️ Best available AI model will be selected automatically based on current capacity"
+        )
+        info_label.setStyleSheet("color: #64748b; font-size: 11px; line-height: 1.4;")
+        text_settings_layout.addWidget(info_label)
+
+        text_layout.addWidget(text_settings_frame)
+
         layout.addWidget(self.text_container)
         layout.addStretch()
 
@@ -1006,11 +1089,69 @@ class MainWindow(QMainWindow):
                 background-color: white;
             }
         """)
-        local_desc = QLabel("Geometry only")
+        local_desc = QLabel("Geometry only • No API credits required")
         local_desc.setStyleSheet("color: #94a3b8; font-size: 11px;")
-
+        
         local_layout.addWidget(local_radio)
         local_layout.addWidget(local_desc)
+
+        # GPU Requirements notice with actual GPU detection
+        from core.gpu_detector import get_gpu_info, get_gpu_warning
+        
+        gpu_info = get_gpu_info()
+        gpu_warning = get_gpu_warning()
+        
+        if not gpu_info["available"]:
+            # CPU mode - still works but slower
+            gpu_notice_text = (
+                "⚠️ Running on CPU (no GPU detected)\n"
+                "• Will work but much slower than GPU\n"
+                "• GPU recommended for faster processing\n"
+                "• For textured models use Cloud API"
+            )
+            gpu_notice_style = """
+                color: #f59e0b;
+                font-size: 10px;
+                line-height: 1.4;
+                margin-top: 4px;
+                background: rgba(245, 158, 11, 0.1);
+                padding: 8px;
+                border-radius: 4px;
+                border-left: 3px solid #f59e0b;
+            """
+        elif gpu_warning:
+            gpu_notice_text = gpu_warning + "\n• May work for simple geometries"
+            gpu_notice_style = """
+                color: #f59e0b;
+                font-size: 10px;
+                line-height: 1.4;
+                margin-top: 4px;
+                background: rgba(245, 158, 11, 0.1);
+                padding: 8px;
+                border-radius: 4px;
+                border-left: 3px solid #f59e0b;
+            """
+        else:
+            gpu_notice_text = (
+                f"✅ {gpu_info['message']}\n"
+                "• Runs TripoSR locally on your PC\n"
+                "• Best for simple geometries\n"
+                "• For textured models use Cloud API"
+            )
+            gpu_notice_style = """
+                color: #22c55e;
+                font-size: 10px;
+                line-height: 1.4;
+                margin-top: 4px;
+                background: rgba(34, 197, 94, 0.1);
+                padding: 8px;
+                border-radius: 4px;
+                border-left: 3px solid #22c55e;
+            """
+        
+        gpu_notice = QLabel(gpu_notice_text)
+        gpu_notice.setStyleSheet(gpu_notice_style)
+        local_layout.addWidget(gpu_notice)
 
         # Cloud API Card
         self.cloud_card = QFrame()
@@ -1060,6 +1201,54 @@ class MainWindow(QMainWindow):
         method_layout.addWidget(self.cloud_card, 1)
 
         layout.addLayout(method_layout)
+
+        # ── Local Processing Options Container (shown when Local is selected) ──
+        self.local_options_widget = QWidget()
+        local_opts_layout = QVBoxLayout(self.local_options_widget)
+        local_opts_layout.setSpacing(12)
+        local_opts_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Quality dropdown
+        quality_row = QHBoxLayout()
+        quality_row.setSpacing(12)
+
+        quality_label = QLabel("Quality")
+        quality_label.setStyleSheet("color: #94a3b8; font-size: 13px; font-weight: 600;")
+        quality_row.addWidget(quality_label)
+
+        self.quality_combo = QComboBox()
+        self.quality_combo.setObjectName("qualityCombo")
+        self.quality_combo.addItem("Draft", "draft")
+        self.quality_combo.addItem("Standard", "standard")
+        self.quality_combo.addItem("High", "high")
+        self.quality_combo.addItem("Production", "production")
+        self.quality_combo.setCurrentText("Standard")
+        quality_row.addWidget(self.quality_combo, 1)
+
+        local_opts_layout.addLayout(quality_row)
+
+        # Local info text
+        local_info = QLabel(
+            "• Draft: Fastest, lower quality\n"
+            "• Standard: Balanced (recommended)\n"
+            "• High: Better mesh quality\n"
+            "• Production: Best quality, slowest"
+        )
+        local_info.setStyleSheet("""
+            color: #93c5fd;
+            font-size: 11px;
+            padding: 8px 12px;
+            background: rgba(59, 130, 246, 0.1);
+            border-left: 3px solid #3b82f6;
+            border-radius: 4px;
+            line-height: 1.5;
+        """)
+        local_opts_layout.addWidget(local_info)
+
+        layout.addWidget(self.local_options_widget)
+
+        # Show local options by default (Local is selected)
+        self.local_options_widget.setVisible(True)
 
         # ── Cloud API Options Container (shown/hidden based on method) ──
         self.cloud_options_widget = QWidget()
@@ -1173,6 +1362,7 @@ class MainWindow(QMainWindow):
         ]
         for model_id, model_name in self.cloud_models:
             self.model_combo.addItem(model_name, model_id)
+        self.model_combo.setCurrentText("Standard v1.5")
         model_container.addWidget(self.model_combo)
         config_row.addLayout(model_container, 1)
 
@@ -1186,16 +1376,11 @@ class MainWindow(QMainWindow):
 
         self.resolution_combo = QComboBox()
         self.resolution_combo.setObjectName("resolutionCombo")
-        self.model_resolutions = {
-            "hitem3dv1.5": ["512", "1024", "1536", "1536pro"],
-            "hitem3dv2.0": ["1536", "1536pro"],
-            "scene-portraitv1.5": ["1536"],
-            "scene-portraitv2.0": ["1536pro"],
-            "scene-portraitv2.1": ["1536pro"],
-        }
-        for res in self.model_resolutions["hitem3dv1.5"]:
+        resolutions = ["512", "1024", "1536", "1536pro"]
+        for res in resolutions:
             display = "1536³ Pro" if res == "1536pro" else f"{res}³"
             self.resolution_combo.addItem(display, res)
+        self.resolution_combo.setCurrentText("512³")
         res_container.addWidget(self.resolution_combo)
         config_row.addLayout(res_container, 1)
 
@@ -1215,6 +1400,7 @@ class MainWindow(QMainWindow):
             ("usdz", "USDZ"),
         ]:
             self.format_combo.addItem(fmt_name, fmt_val)
+        self.format_combo.setCurrentText("OBJ")
         fmt_container.addWidget(self.format_combo)
         config_row.addLayout(fmt_container, 1)
 
@@ -1250,37 +1436,299 @@ class MainWindow(QMainWindow):
         return group
 
     def _create_preview_section(self) -> QGroupBox:
-        """Create the PREVIEW section with image drop area."""
-        group = QGroupBox("🖼️ PREVIEW")
+        """Create the PREVIEW section with image preview, 3D viewer, and generation animation."""
+        group = QGroupBox()
         group.setObjectName("sectionCard")
+        group.setStyleSheet("""
+            QGroupBox {
+                border: 1px solid #1e293b;
+                border-radius: 8px;
+                margin-top: 12px;
+                padding-top: 24px;
+                background-color: #161616;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                subcontrol-position: top center;
+                padding: 4px 12px;
+                color: #60a5fa;
+                font-size: 13px;
+                font-weight: 600;
+                text-transform: uppercase;
+            }
+        """)
 
         layout = QVBoxLayout(group)
         layout.setSpacing(12)
-        layout.setContentsMargins(16, 20, 16, 16)
+        layout.setContentsMargins(16, 8, 16, 16)
 
-        # Preview Area
+        # Title label (centered)
+        title_label = QLabel("🖼️ PREVIEW")
+        title_label.setStyleSheet("""
+            color: #60a5fa;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            padding: 4px 0px;
+        """)
+        title_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(title_label)
+
+        # Preview Container (stacked views for different states)
+        self.preview_container = QWidget()
+        self.preview_container.setMinimumHeight(320)
+        container_layout = QVBoxLayout(self.preview_container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.setSpacing(0)
+        container_layout.setAlignment(Qt.AlignCenter)
+
+        # State 1: Image Preview (initial state)
         self.preview_frame = QFrame()
         self.preview_frame.setObjectName("previewFrame")
-        self.preview_frame.setMinimumHeight(250)
+        self.preview_frame.setMinimumHeight(220)
         self.preview_frame.setAcceptDrops(True)
 
-        preview_layout = QVBoxLayout(self.preview_frame)
-        preview_layout.setAlignment(Qt.AlignCenter)
+        image_layout = QVBoxLayout(self.preview_frame)
+        image_layout.setAlignment(Qt.AlignCenter)
 
         self.preview_label = QLabel("No image selected")
         self.preview_label.setStyleSheet("color: #64748b; font-size: 14px;")
         self.preview_label.setAlignment(Qt.AlignCenter)
-        preview_layout.addWidget(self.preview_label)
+        image_layout.addWidget(self.preview_label)
 
         self.image_preview = QLabel()
         self.image_preview.setAlignment(Qt.AlignCenter)
         self.image_preview.setStyleSheet("background-color: transparent;")
-        self.image_preview.setMaximumSize(400, 300)
+        self.image_preview.setMaximumSize(400, 280)
         self.image_preview.setScaledContents(True)
         self.image_preview.hide()
-        preview_layout.addWidget(self.image_preview)
+        image_layout.addWidget(self.image_preview)
 
-        layout.addWidget(self.preview_frame, 1)
+        container_layout.addWidget(self.preview_frame)
+
+        # State 2: Generation Animation Overlay
+        self.generation_overlay = QFrame()
+        self.generation_overlay.setObjectName("generationOverlay")
+        self.generation_overlay.setMinimumHeight(320)
+        self.generation_overlay.setVisible(False)
+        self.generation_overlay.setStyleSheet("background: transparent;")
+
+        gen_html = """
+        <!DOCTYPE html>
+        <html style="height: 100%;">
+        <head>
+            <style>
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                html {
+                    height: 100%;
+                    margin: 0;
+                    padding: 0;
+                }
+                body {
+                    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+                    min-height: 100%;
+                    height: 100%;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                    color: #e5e7eb;
+                    margin: 0;
+                    padding: 0;
+                }
+                .cube-container {
+                    width: 80px;
+                    height: 80px;
+                    perspective: 200px;
+                    margin-bottom: 24px;
+                }
+                .cube {
+                    width: 100%;
+                    height: 100%;
+                    position: relative;
+                    transform-style: preserve-3d;
+                    animation: cubeRotate 2s ease-in-out infinite;
+                }
+                .face {
+                    position: absolute;
+                    width: 80px;
+                    height: 80px;
+                    border: 3px solid transparent;
+                    border-radius: 8px;
+                    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5), inset 0 0 20px rgba(59, 130, 246, 0.3);
+                    opacity: 0.9;
+                }
+                .front {
+                    transform: translateZ(40px);
+                    background: linear-gradient(135deg, rgba(59, 130, 246, 0.7) 0%, rgba(37, 99, 235, 0.9) 100%);
+                    border-color: #60a5fa;
+                }
+                .back {
+                    transform: rotateY(180deg) translateZ(40px);
+                    background: linear-gradient(135deg, rgba(59, 130, 246, 0.7) 0%, rgba(37, 99, 235, 0.9) 100%);
+                    border-color: #60a5fa;
+                }
+                .right {
+                    transform: rotateY(90deg) translateZ(40px);
+                    background: linear-gradient(135deg, rgba(96, 165, 250, 0.7) 0%, rgba(59, 130, 246, 0.9) 100%);
+                    border-color: #93c5fd;
+                }
+                .left {
+                    transform: rotateY(-90deg) translateZ(40px);
+                    background: linear-gradient(135deg, rgba(96, 165, 250, 0.7) 0%, rgba(59, 130, 246, 0.9) 100%);
+                    border-color: #93c5fd;
+                }
+                .top {
+                    transform: rotateX(90deg) translateZ(40px);
+                    background: linear-gradient(135deg, rgba(147, 197, 253, 0.7) 0%, rgba(96, 165, 250, 0.9) 100%);
+                    border-color: #bfdbfe;
+                }
+                .bottom {
+                    transform: rotateX(-90deg) translateZ(40px);
+                    background: linear-gradient(135deg, rgba(59, 130, 246, 0.5) 0%, rgba(37, 99, 235, 0.7) 100%);
+                    border-color: #3b82f6;
+                }
+                @keyframes cubeRotate {
+                    0% { transform: rotateX(0deg) rotateY(0deg); }
+                    25% { transform: rotateX(10deg) rotateY(90deg); }
+                    50% { transform: rotateX(0deg) rotateY(180deg); }
+                    75% { transform: rotateX(-10deg) rotateY(270deg); }
+                    100% { transform: rotateX(0deg) rotateY(360deg); }
+                }
+                .title {
+                    font-size: 22px;
+                    font-weight: 700;
+                    color: #f8fafc;
+                    margin-bottom: 4px;
+                }
+                .service {
+                    font-size: 14px;
+                    color: #60a5fa;
+                    font-weight: 600;
+                    margin-bottom: 16px;
+                }
+                .subtitle {
+                    font-size: 13px;
+                    color: #94a3b8;
+                }
+                .progress-container {
+                    width: 280px;
+                    height: 8px;
+                    background: #1e293b;
+                    border-radius: 4px;
+                    overflow: hidden;
+                    margin-top: 20px;
+                }
+                .progress-fill {
+                    height: 100%;
+                    background: linear-gradient(90deg, #06b6d4, #3b82f6, #8b5cf6, #ec4899, #f59e0b, #10b981);
+                    background-size: 200% 100%;
+                    border-radius: 4px;
+                    animation: progressMove 2s linear infinite;
+                    width: 0%;
+                    transition: width 0.3s ease;
+                }
+                @keyframes progressMove {
+                    0% { background-position: 100% 0; }
+                    100% { background-position: -100% 0; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="cube-container">
+                <div class="cube">
+                    <div class="face front"></div>
+                    <div class="face back"></div>
+                    <div class="face right"></div>
+                    <div class="face left"></div>
+                    <div class="face top"></div>
+                    <div class="face bottom"></div>
+                </div>
+            </div>
+            <div class="title" id="gen-title">Generating 3D Model...</div>
+            <div class="service" id="gen-service">☁️ Cloud API</div>
+            <div class="subtitle">Please wait...</div>
+            <div class="progress-container">
+                <div class="progress-fill" id="gen-progress"></div>
+            </div>
+        </body>
+        </html>
+        """
+
+        self.gen_webview = QWebEngineView()
+        self.gen_webview.setHtml(gen_html)
+        self.generation_overlay_layout = QVBoxLayout(self.generation_overlay)
+        self.generation_overlay_layout.setContentsMargins(0, 0, 0, 0)
+        self.generation_overlay_layout.addWidget(self.gen_webview)
+
+        container_layout.addWidget(self.generation_overlay)
+
+        # State 3: 3D Model Viewer (after generation)
+        from PySide6.QtWebEngineCore import QWebEngineSettings
+
+        self.model_viewer = QWebEngineView()
+        self.model_viewer.settings().setAttribute(
+            QWebEngineSettings.LocalContentCanAccessFileUrls, True
+        )
+        self.model_viewer.setObjectName("modelViewer")
+        self.model_viewer.setMinimumHeight(320)
+        self.model_viewer.setVisible(False)
+
+        # Initial empty state for viewer
+        self.model_viewer.setHtml("""
+        <html><body style="background:#0f172a; color:#64748b; font-family:sans-serif; display:flex; justify-content:center; align-items:center; height:100vh; margin:0;">
+        <div style="text-align:center;">Generate a 3D model to view it here</div>
+        </body></html>
+        """)
+
+        container_layout.addWidget(self.model_viewer)
+
+        layout.addWidget(self.preview_container, 1)
+
+        # Download Buttons (shown after generation)
+        self.download_btns_widget = QWidget()
+        download_btns_layout = QHBoxLayout(self.download_btns_widget)
+        download_btns_layout.setSpacing(10)
+        download_btns_layout.setContentsMargins(0, 12, 0, 0)
+
+        self.btn_save_obj = QPushButton("⬇️ OBJ")
+        self.btn_save_obj.setObjectName("smallPrimaryButton")
+        self.btn_save_obj.clicked.connect(lambda: self._on_save_output("OBJ"))
+        self.btn_save_obj.setEnabled(False)
+        self.btn_save_obj.setCursor(Qt.PointingHandCursor)
+        download_btns_layout.addWidget(self.btn_save_obj)
+
+        self.btn_save_stl = QPushButton("⬇️ STL")
+        self.btn_save_stl.setObjectName("smallPrimaryButton")
+        self.btn_save_stl.clicked.connect(lambda: self._on_save_output("STL"))
+        self.btn_save_stl.setEnabled(False)
+        self.btn_save_stl.setCursor(Qt.PointingHandCursor)
+        download_btns_layout.addWidget(self.btn_save_stl)
+
+        self.btn_save_glb = QPushButton("⬇️ GLB")
+        self.btn_save_glb.setObjectName("smallPrimaryButton")
+        self.btn_save_glb.clicked.connect(lambda: self._on_save_output("GLB"))
+        self.btn_save_glb.setEnabled(False)
+        self.btn_save_glb.setCursor(Qt.PointingHandCursor)
+        download_btns_layout.addWidget(self.btn_save_glb)
+
+        self.btn_save_fbx = QPushButton("⬇️ FBX")
+        self.btn_save_fbx.setObjectName("smallPrimaryButton")
+        self.btn_save_fbx.clicked.connect(lambda: self._on_save_output("FBX"))
+        self.btn_save_fbx.setEnabled(False)
+        self.btn_save_fbx.setCursor(Qt.PointingHandCursor)
+        download_btns_layout.addWidget(self.btn_save_fbx)
+
+        self.btn_save_usdz = QPushButton("⬇️ USDZ")
+        self.btn_save_usdz.setObjectName("smallPrimaryButton")
+        self.btn_save_usdz.clicked.connect(lambda: self._on_save_output("USDZ"))
+        self.btn_save_usdz.setEnabled(False)
+        self.btn_save_usdz.setCursor(Qt.PointingHandCursor)
+        download_btns_layout.addWidget(self.btn_save_usdz)
+
+        self.download_btns_widget.setVisible(False)
+        layout.addWidget(self.download_btns_widget)
 
         return group
 
@@ -1549,8 +1997,8 @@ class MainWindow(QMainWindow):
         
         #sectionCard::title {
             subcontrol-origin: margin;
-            left: 10px;
-            padding: 0 5px;
+            subcontrol-position: top center;
+            padding: 0 10px;
             color: #60a5fa;
         }
         
@@ -1844,36 +2292,19 @@ class MainWindow(QMainWindow):
             self.cloud_card.setObjectName("methodCardSelected")
             self.local_card.setObjectName("methodCard")
             self.cloud_options_widget.setVisible(True)
+            self.local_options_widget.setVisible(False)
             # Defer network call so UI renders first (prevents crash/freeze)
             QTimer.singleShot(50, self._safe_refresh_cloud_credit_display)
         else:
             self.local_card.setObjectName("methodCardSelected")
             self.cloud_card.setObjectName("methodCard")
             self.cloud_options_widget.setVisible(False)
+            self.local_options_widget.setVisible(True)
         self._load_stylesheet()
 
     def _on_model_changed(self, index):
-        """Handle model selection change - update available resolutions and info."""
+        """Handle model selection change - update model info text."""
         model_id = self.model_combo.currentData()  # Get the model ID
-        resolutions = self.model_resolutions.get(model_id, ["1024", "1536", "1536pro"])
-
-        # Save current selection if still available
-        current_res = self.resolution_combo.currentData()
-
-        # Update resolutions
-        self.resolution_combo.blockSignals(True)
-        self.resolution_combo.clear()
-        for res in resolutions:
-            display = "1536³ Pro" if res == "1536pro" else f"{res}³"
-            self.resolution_combo.addItem(display, res)
-
-        # Try to restore previous selection or default to highest
-        if current_res in resolutions:
-            idx = resolutions.index(current_res)
-            self.resolution_combo.setCurrentIndex(idx)
-        else:
-            self.resolution_combo.setCurrentIndex(len(resolutions) - 1)  # Highest res
-        self.resolution_combo.blockSignals(False)
 
         # Update model info text
         if hasattr(self, "model_info_label") and hasattr(self, "model_descriptions"):
@@ -1991,6 +2422,109 @@ class MainWindow(QMainWindow):
             self._update_cost_preview()
             return
 
+        trial_remaining = balance_info.get("trial_remaining", 0)
+        trial_used = balance_info.get("trial_used", 0)
+        credits = balance_info.get("credits_balance", 0)
+
+        self._cached_trial_remaining = trial_remaining
+        self._cached_credits_balance = credits
+
+        if trial_used == 0:
+            self.cloud_credit_value.setText(f"{trial_remaining} trial credits")
+        else:
+            self.cloud_credit_value.setText(f"{credits} credits")
+
+        self._update_cost_preview()
+
+    def _show_preview_image(self):
+        """Show the image preview state."""
+        self.preview_frame.setVisible(True)
+        self.generation_overlay.setVisible(False)
+        self.model_viewer.setVisible(False)
+        self.download_btns_widget.setVisible(False)
+
+    def _show_generation_animation(self, service_name: str = "Cloud API"):
+        """Show the generation animation overlay."""
+        self.preview_frame.setVisible(False)
+        self.generation_overlay.setVisible(True)
+        self.model_viewer.setVisible(False)
+        self.download_btns_widget.setVisible(False)
+
+        # Determine icon based on service name
+        if "TripoSR" in service_name:
+            service_icon = "⚡"
+        elif "Cloud" in service_name:
+            service_icon = "☁️"
+        else:
+            service_icon = "💻"
+            
+        js_code = f"""
+            (function() {{
+                var el = document.getElementById('gen-service');
+                if(el) el.textContent = '{service_icon} {service_name}';
+                var prog = document.getElementById('gen-progress');
+                if(prog) prog.style.width = '0%';
+            }})();
+        """
+        if hasattr(self, 'gen_webview'):
+            self.gen_webview.page().runJavaScript(js_code)
+
+        self._start_generation_animation_timer()
+
+    def _start_generation_animation_timer(self):
+        """Animate the generation progress indicator."""
+        if hasattr(self, '_gen_animation_timer'):
+            self._gen_animation_timer.stop()
+
+        self._gen_animation_timer = QTimer()
+        self._gen_animation_timer.timeout.connect(self._update_generation_animation)
+        self._gen_animation_timer.start(100)
+
+    def _update_generation_animation(self):
+        """Update the generation animation frame."""
+        if not self.generation_overlay.isVisible():
+            if hasattr(self, '_gen_animation_timer'):
+                self._gen_animation_timer.stop()
+            return
+
+        # Update the progress bar in the HTML via JavaScript
+        js_code = """
+            (function() {
+                var prog = document.getElementById('gen-progress');
+                if(prog) {
+                    var current = parseFloat(prog.style.width) || 0;
+                    if(current < 90) {
+                        prog.style.width = (current + 2) + '%';
+                    }
+                }
+            })();
+        """
+        if hasattr(self, 'gen_webview'):
+            self.gen_webview.page().runJavaScript(js_code)
+
+    def _show_3d_viewer(self):
+        """Show the 3D model viewer."""
+        self.preview_frame.setVisible(False)
+        self.generation_overlay.setVisible(False)
+        self.model_viewer.setVisible(True)
+        self.download_btns_widget.setVisible(True)
+
+        if hasattr(self, '_gen_animation_timer'):
+            self._gen_animation_timer.stop()
+
+        # Try to get balance info, but don't fail if unavailable
+        try:
+            balance_info = self._get_balance_info()
+        except Exception:
+            balance_info = {}
+
+        if not balance_info or "error" in balance_info:
+            self.cloud_credit_value.setText("Error loading")
+            self._cached_trial_remaining = 0
+            self._cached_credits_balance = 0
+            self._update_cost_preview()
+            return
+
         trial = balance_info.get("trial_remaining", 0)
         credits = balance_info.get("credits_balance", 0)
 
@@ -2100,6 +2634,17 @@ class MainWindow(QMainWindow):
         self.elapsed_label.setText("Elapsed: --:--")
         self.eta_label.setText("ETA: --:--")
         self.generate_btn.setEnabled(False)
+        
+        # Reset preview to show image state
+        self._show_preview_image()
+        
+        # Reset download buttons
+        self.btn_save_obj.setEnabled(False)
+        self.btn_save_stl.setEnabled(False)
+        self.btn_save_glb.setEnabled(False)
+        self.btn_save_fbx.setEnabled(False)
+        self.btn_save_usdz.setEnabled(False)
+        
         self._add_log("🔄 Reset")
 
     def _enforce_trial_settings(self):
@@ -2329,12 +2874,20 @@ class MainWindow(QMainWindow):
             model_type = "cloud"
 
         # Get model and resolution from combos
-        api_model = self.model_combo.currentData()
-        api_resolution = self.resolution_combo.currentData()
+        if is_text_mode:
+            # Text mode uses its own quality and format settings
+            api_resolution = self.text_quality_combo.currentData() if hasattr(self, 'text_quality_combo') else "1024"
+            text_output_format = self.text_format_combo.currentData() if hasattr(self, 'text_format_combo') else "glb"
+            api_model = "tripo3d"  # Text-to-3D uses Tripo3D
+        else:
+            api_model = self.model_combo.currentData()
+            api_resolution = self.resolution_combo.currentData()
+            text_output_format = None
 
         # Local processing (image only) is FREE
         if model_type == "local" and not is_text_mode:
-            self._start_local_generation("standard")
+            local_quality = self.quality_combo.currentData() if hasattr(self, 'quality_combo') else "standard"
+            self._start_local_generation(local_quality)
             return
 
         # Credit check and deduction for Cloud
@@ -2408,6 +2961,11 @@ class MainWindow(QMainWindow):
         self.btn_save_obj.setEnabled(False)
         self.btn_save_stl.setEnabled(False)
         self.btn_save_glb.setEnabled(False)
+        self.btn_save_fbx.setEnabled(False)
+        self.btn_save_usdz.setEnabled(False)
+
+        service_name = "☁️ Cloud API" if model_type == "cloud" else "💻 Local Processing"
+        self._show_generation_animation(service_name)
 
         self.status_label.setText("Initializing...")
         self.status_icon.setText("⏳")
@@ -2416,7 +2974,11 @@ class MainWindow(QMainWindow):
         self.timer.start(1000)
 
         output_formats = ["obj", "stl", "glb"]
-        if hasattr(self, "format_combo"):
+        if is_text_mode and hasattr(self, "text_format_combo"):
+            fmt = self.text_format_combo.currentData()
+            if fmt and fmt not in output_formats:
+                output_formats.append(fmt)
+        elif hasattr(self, "format_combo"):
             fmt = self.format_combo.currentData()
             if fmt and fmt not in output_formats:
                 output_formats.append(fmt)
@@ -2493,6 +3055,11 @@ class MainWindow(QMainWindow):
         self.btn_save_obj.setEnabled(False)
         self.btn_save_stl.setEnabled(False)
         self.btn_save_glb.setEnabled(False)
+        self.btn_save_fbx.setEnabled(False)
+        self.btn_save_usdz.setEnabled(False)
+
+        # Show generation animation
+        self._show_generation_animation("⚡ TripoSR Processing")
 
         # Start generation
         self.generate_btn.setEnabled(False)
@@ -2537,8 +3104,13 @@ class MainWindow(QMainWindow):
 
     def _on_status(self, status: str):
         """Handle status update with progress mapping."""
-        # Map status messages to progress stages
         status_lower = status.lower()
+
+        # Check if this is a TripoSR processing status (local generation)
+        if "triposr" in status_lower or "processing" in status_lower:
+            # For local processing, just update status label, don't flood the log
+            self.status_label.setText(status)
+            return
 
         # Update progress bar based on stage
         if "initializing" in status_lower:
@@ -2548,7 +3120,6 @@ class MainWindow(QMainWindow):
         elif "submit" in status_lower:
             self.progress_bar.setValue(15)
         elif "processing on cloud" in status_lower or "waiting" in status_lower:
-            # Extract time from status if available
             self.progress_bar.setValue(40)
         elif "generating" in status_lower or "model" in status_lower:
             self.progress_bar.setValue(70)
@@ -2569,53 +3140,46 @@ class MainWindow(QMainWindow):
         self.timer.stop()
         self.generate_btn.setEnabled(True)
 
-        # Enable Open/Save buttons for available formats
-        # Show the 3D model!
+        # Show 3D model viewer (open in system browser for best WebGL support)
         if result.get("glb") and Path(result["glb"]).exists():
             glb_path = Path(result["glb"]).absolute()
-            glb_uri = glb_path.as_uri()
-            base_dir = QUrl.fromLocalFile(str(glb_path.parent) + "/")
-
-            # Use model-viewer but gracefully handle PySide6 SwiftShader WebGL failures
-            # on machines without D3D11 / OpenGL.
-            self.model_viewer.setHtml(
-                f"""
-            <html><head>
-            <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
-            <style>
-                body {{ margin: 0; background-color: #0f172a; overflow: hidden; color: white;     
-                        font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; }}
-                #fallback {{ display: none; text-align: center; padding: 20px; }}
-                .btn {{ background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 6px; 
-                       cursor: pointer; font-weight: bold; margin-top: 15px; text-decoration: none; display: inline-block; }}
-                .btn:hover {{ background: #2563eb; }}
-            </style>
-            </head><body>
-            <div id="fallback">
-                <h3>⚠️ 3D Preview Unavailable</h3>
-                <p>Your system's embedded hardware acceleration (WebGL) is disabled.</p>
-                <p style="color: #60a5fa; margin-top: 15px;">Please use the ⬇️ Download buttons below</p>
-            </div>
             
-            <model-viewer id="mv" src="{glb_uri}" alt="A 3D model" auto-rotate camera-controls 
-                          style="width: 100vw; height: 100vh; border: none; outline: none; position: absolute; top:0; left:0;">
-            </model-viewer>
+            # Get the viewer path
+            import sys
+            if hasattr(sys, '_MEIPASS'):
+                viewer_path = Path(sys._MEIPASS) / "viewer.html"
+            else:
+                viewer_path = Path(__file__).parent.parent / "viewer.html"
             
-            <script>
-                // Detect WebGL capability. If missing, destroy model-viewer and show fallback.
-                try {{
-                    var canvas = document.createElement('canvas');
-                    var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-                    if (!gl) {{ throw new Error("No WebGL context"); }}
-                }} catch (e) {{
-                    document.getElementById('mv').remove();
-                    document.getElementById('fallback').style.display = 'block';
-                }}
-            </script>
-            </body></html>
-            """,
-                baseUrl=base_dir,
-            )
+            # Create a file:// URL directly (no encoding needed for the viewer to parse)
+            model_uri = glb_path.as_uri()
+            # URL-encode the model URI to handle the file:// scheme properly
+            from urllib.parse import quote
+            encoded_model = quote(model_uri, safe='')
+            model_param = f"?model={encoded_model}"
+            full_url = viewer_path.as_uri() + model_param
+            
+            # Debug: print to console
+            print(f"DEBUG: GLB path: {glb_path}")
+            print(f"DEBUG: Model URI: {model_uri}")
+            print(f"DEBUG: Encoded model: {encoded_model}")
+            print(f"DEBUG: Full URL: {full_url}")
+            
+            # Open in system browser for reliable WebGL (avoids Qt WebEngine issues)
+            import webbrowser
+            webbrowser.open(full_url)
+            
+            # Show notification in the app
+            self.status_label.setText("Opening 3D viewer in your browser...")
+            
+            # Still show the embedded viewer as fallback
+            self.model_viewer.setUrl(QUrl(full_url))
+            self._show_3d_viewer()
+        else:
+            # Debug: explain why viewer wasn't opened
+            print(f"DEBUG: No GLB file. result.get('glb') = {result.get('glb')}")
+            if result.get('glb'):
+                print(f"DEBUG: GLB path exists: {Path(result['glb']).exists()}")
 
         # Enable Open/Save buttons for available formats
         if result.get("obj"):
@@ -2624,6 +3188,10 @@ class MainWindow(QMainWindow):
             self.btn_save_stl.setEnabled(True)
         if result.get("glb"):
             self.btn_save_glb.setEnabled(True)
+        if result.get("fbx"):
+            self.btn_save_fbx.setEnabled(True)
+        if result.get("usdz"):
+            self.btn_save_usdz.setEnabled(True)
 
         self.status_label.setText("Complete!")
         self.status_icon.setText("✅")
@@ -2711,11 +3279,15 @@ class MainWindow(QMainWindow):
         self.timer.stop()
         self.generate_btn.setEnabled(True)
 
+        # Show image preview again on error
+        self._show_preview_image()
+
         # Enable buttons on error (for next retry)
-        # Enable buttons on error (for next retry/access to previous if any)
         self.btn_save_obj.setEnabled(True)
         self.btn_save_stl.setEnabled(True)
         self.btn_save_glb.setEnabled(True)
+        self.btn_save_fbx.setEnabled(True)
+        self.btn_save_usdz.setEnabled(True)
 
         self.status_label.setText(f"Error: {error}")
         self.status_icon.setText("❌")

@@ -267,8 +267,8 @@
         function checkWebGL() {
             try {
                 const canvas = document.createElement('canvas');
-                return !!(window.WebGLRenderingContext &&
-                    (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+                const gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                return !!gl;
             } catch (e) {
                 return false;
             }
@@ -278,6 +278,11 @@
             if (!checkWebGL()) {
                 document.getElementById('loading-overlay').classList.add('hidden');
                 document.getElementById('error-overlay').classList.add('visible');
+                document.querySelector('#error-overlay p').textContent =
+                    'WebGL is not available on this system. Please ensure:\n' +
+                    '1. Your browser supports WebGL\n' +
+                    '2. Hardware acceleration is enabled\n' +
+                    '3. Graphics drivers are up to date';
                 return;
             }
 
@@ -410,7 +415,13 @@
                 },
                 function (error) {
                     console.error('Error loading model:', error);
-                    document.getElementById('loading-text').textContent = 'Error loading model';
+                    const errorMsg = 'Error loading model. URL: ' + url + '. Check console for details.';
+                    document.getElementById('loading-text').textContent = errorMsg;
+                    document.getElementById('error-overlay').classList.add('visible');
+                    document.querySelector('#error-overlay p').textContent =
+                        'Could not load the 3D model.\n\n' +
+                        'Model URL: ' + url + '\n\n' +
+                        'Please check that the model file exists and is accessible.';
                     setTimeout(() => {
                         document.getElementById('loading-overlay').classList.add('hidden');
                     }, 2000);

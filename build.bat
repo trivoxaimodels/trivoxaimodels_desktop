@@ -1,16 +1,16 @@
 @echo off
-REM TrivoxModels Desktop Application - Simple Build Script
+REM VoxelCraft Desktop Application - Simple Build Script
 REM ===================================================
 REM Builds the executable using PyInstaller with virtual environment
 
 echo ============================================
-echo  TrivoxModels Desktop Application Build
+echo  VoxelCraft Desktop Application Build
 echo ============================================
 echo.
 
 REM Configuration
-set "APP_NAME=TrivoxModels"
-set "SPEC_FILE=TrivoxModels.spec"
+set "APP_NAME=VoxelCraft"
+set "SPEC_FILE=VoxelCraft.spec"
 set "BUILD_DIR=build"
 set "DIST_DIR=dist"
 set "VENV_DIR=venv"

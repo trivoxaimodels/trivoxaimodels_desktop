@@ -1,10 +1,10 @@
 @echo off
 chcp 65001 >nul
-title Trivox Models v1.0.0 - Complete Build System
+title Voxel Craft v1.0.0 - Complete Build System
 cls
 
 echo ============================================
-echo  Trivox Models v1.0.0 - Complete Build System
+echo  Voxel Craft v1.0.0 - Complete Build System
 echo ============================================
 echo.
 echo This script will:
@@ -13,7 +13,7 @@ echo   [2] Create the Windows installer using Inno Setup
 echo   [3] Package everything for distribution
 echo.
 echo Features included in installer:
-echo   - Professional setup wizard with logo
+echo   - Professional Antigravity style setup wizard with logo
 echo   - License agreement page
 echo   - Custom installation path selection
 echo   - Desktop shortcut option
@@ -34,9 +34,9 @@ if %errorlevel% neq 0 (
 )
 
 REM Configuration
-set "APP_NAME=TrivoxModels"
+set "APP_NAME=VoxelCraft"
 set "APP_VERSION=1.0.0"
-set "SPEC_FILE=TrivoxModels.spec"
+set "SPEC_FILE=VoxelCraft.spec"
 set "BUILD_DIR=build"
 set "DIST_DIR=dist"
 set "INSTALLER_DIR=installer"
@@ -46,16 +46,6 @@ set "INNO_SETUP_PATH="
 echo ============================================
 echo  Step 1: Checking Prerequisites
 echo ============================================
-echo.
-
-REM Create installer assets from logo
-echo [0/7] Creating installer assets from logo...
-if exist "create_installer_assets.py" (
-    python create_installer_assets.py
-    if %errorlevel% neq 0 (
-        echo [WARNING] Failed to create installer assets. Using existing ones.
-    )
-)
 echo.
 
 REM Check Python
@@ -137,7 +127,7 @@ if not exist "%INSTALLER_DIR%\setup_assets\logo.bmp" (
     echo The installer will use default branding.
     echo.
     echo To add custom branding, create:
-    echo   - installer\setup_assets\logo.bmp (164x314 pixels for sidebar)
+    echo   - installer\setup_assets\logo.bmp (500x300 pixels for sidebar)
     echo   - installer\setup_assets\logo.ico (for setup icon)
 ) else (
     echo Logo files found.
@@ -149,8 +139,8 @@ echo [6/7] Checking license file...
 if not exist "%INSTALLER_DIR%\setup_assets\LICENSE.txt" (
     echo [WARNING] LICENSE.txt not found!
     echo Creating default license file...
-    echo Trivox Models Software License > "%INSTALLER_DIR%\setup_assets\LICENSE.txt"
-    echo Copyright ^(c^) 2024 Trivox Models >> "%INSTALLER_DIR%\setup_assets\LICENSE.txt"
+    echo Voxel Craft Software License > "%INSTALLER_DIR%\setup_assets\LICENSE.txt"
+    echo Copyright ^(c^) 2024 Voxel Craft >> "%INSTALLER_DIR%\setup_assets\LICENSE.txt"
 ) else (
     echo License file found.
 )
@@ -258,7 +248,7 @@ echo This may take 5-10 minutes...
 echo.
 
 cd %INSTALLER_DIR%
-"%INNO_SETUP_PATH%" /Q "TrivoxModels.iss"
+"%INNO_SETUP_PATH%" /Q "VoxelCraft.iss"
 set BUILD_RESULT=%errorlevel%
 cd ..
 
@@ -271,7 +261,7 @@ if %BUILD_RESULT% neq 0 (
     exit /b 1
 )
 
-if not exist "%INSTALLER_DIR%\output\TrivoxModels_Setup_v%APP_VERSION%.exe" (
+if not exist "%INSTALLER_DIR%\output\VoxelCraft_Setup_v%APP_VERSION%.exe" (
     echo.
     echo [ERROR] Installer file not found after build!
     echo.
@@ -279,7 +269,7 @@ if not exist "%INSTALLER_DIR%\output\TrivoxModels_Setup_v%APP_VERSION%.exe" (
     exit /b 1
 )
 
-for %%I in ("%INSTALLER_DIR%\output\TrivoxModels_Setup_v%APP_VERSION%.exe") do (
+for %%I in ("%INSTALLER_DIR%\output\VoxelCraft_Setup_v%APP_VERSION%.exe") do (
     set "INSTALLER_SIZE=%%~zI"
 )
 
@@ -292,11 +282,11 @@ echo  Step 5: Creating Distribution Package
 echo ============================================
 echo.
 
-set "PACKAGE_NAME=TrivoxModels_v%APP_VERSION%_Complete"
+set "PACKAGE_NAME=VoxelCraft_v%APP_VERSION%_Complete"
 
 if exist "%PACKAGE_NAME%.zip" del /f "%PACKAGE_NAME%.zip"
 
-powershell -Command "Compress-Archive -Path '%INSTALLER_DIR%\output\TrivoxModels_Setup_v%APP_VERSION%.exe' -DestinationPath '%PACKAGE_NAME%.zip' -Force"
+powershell -Command "Compress-Archive -Path '%INSTALLER_DIR%\output\VoxelCraft_Setup_v%APP_VERSION%.exe' -DestinationPath '%PACKAGE_NAME%.zip' -Force"
 
 if errorlevel 1 (
     echo [WARNING] Failed to create ZIP package.
@@ -334,13 +324,13 @@ echo.
 
 if defined INNO_SETUP_PATH (
     echo   Installer:
-    echo     File: %INSTALLER_DIR%\output\TrivoxModels_Setup_v%APP_VERSION%.exe
+    echo     File: %INSTALLER_DIR%\output\VoxelCraft_Setup_v%APP_VERSION%.exe
     echo.
     echo   Distribution:
     echo     File: %PACKAGE_NAME%.zip
     echo.
     echo Installer Features:
-    echo   [x] Professional setup wizard with custom branding
+    echo   [x] Professional Antigravity style setup wizard with custom branding
     echo   [x] License agreement acceptance required
     echo   [x] Custom installation directory selection
     echo   [x] Desktop shortcut option
@@ -350,7 +340,7 @@ if defined INNO_SETUP_PATH (
     echo   [x] Clean uninstall support
     echo.
     echo Next Steps:
-    echo   1. Test the installer: %INSTALLER_DIR%\output\TrivoxModels_Setup_v%APP_VERSION%.exe
+    echo   1. Test the installer: %INSTALLER_DIR%\output\VoxelCraft_Setup_v%APP_VERSION%.exe
     echo   2. Verify all features work correctly
     echo   3. Upload to your distribution server
     echo.
