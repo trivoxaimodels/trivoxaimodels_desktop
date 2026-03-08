@@ -1,5 +1,5 @@
 """
-Beautiful Login Page for TrivoxModels Desktop App
+Beautiful Login Page for VoxelCraft Desktop App
 A standalone demonstration of a modern login interface
 """
 
@@ -32,7 +32,7 @@ class LoginWindow(QMainWindow):
         
     def _setup_window(self):
         """Setup window properties."""
-        self.setWindowTitle("TrivoxModels - Sign In")
+        self.setWindowTitle("VoxelCraft - Sign In")
         self.setMinimumSize(1200, 700)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowMinimizeButtonHint)
         
@@ -107,7 +107,7 @@ class LoginWindow(QMainWindow):
         layout.addWidget(logo_container, 0, Qt.AlignCenter)
         
         # App Title
-        title = QLabel("TrivoxModels")
+        title = QLabel("VoxelCraft")
         title_font = QFont()
         title_font.setPointSize(48)
         title_font.setBold(True)

@@ -189,9 +189,9 @@ def get_output_dir() -> Path:
 
     # Use user's Local AppData folder for secure, hidden storage
     if os.name == "nt":  # Windows
-        secure_path = Path(os.getenv("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "TrivoxModels" / "SecureStorage"
+        secure_path = Path(os.getenv("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "VoxelCraft" / "SecureStorage"
     else:  # macOS/Linux
-        secure_path = Path.home() / ".trivoxmodels" / "secure_storage"
+        secure_path = Path.home() / ".VoxelCraft" / "secure_storage"
 
     output_dir = secure_path
 

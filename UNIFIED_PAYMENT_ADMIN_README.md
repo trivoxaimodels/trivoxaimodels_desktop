@@ -48,7 +48,7 @@ This system allows **web admin panel** to control payment settings for **BOTH** 
    - Form handling
    - Real-time updates
 
-### Desktop App Files (for `I:\trivoxmodels_desktop_app`)
+### Desktop App Files (for `I:\VoxelCraft_desktop_app`)
 
 1. **`core/payment_config_sync.py`**
    - Syncs payment config from web to desktop
@@ -339,7 +339,7 @@ if keys:
 1. Check `WEB_API_URL` is set correctly
 2. Verify license is valid
 3. Check network connectivity
-4. Review logs in `~/.trivoxmodels/payment_config_cache.json`
+4. Review logs in `~/.VoxelCraft/payment_config_cache.json`
 
 ### API Keys Not Working
 
@@ -365,7 +365,7 @@ clear_payment_config_cache()
 
 ### Desktop App Cache
 
-- Cache location: `~/.trivoxmodels/payment_config_cache.json`
+- Cache location: `~/.VoxelCraft/payment_config_cache.json`
 - TTL: 5 minutes (configurable via `CACHE_TTL_MINUTES`)
 - Clear cache on app restart or call `clear_payment_config_cache()`
 

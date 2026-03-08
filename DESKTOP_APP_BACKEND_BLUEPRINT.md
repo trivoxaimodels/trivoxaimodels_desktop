@@ -1,4 +1,4 @@
-# TrivoxModels Desktop App — Complete Backend Blueprint
+# VoxelCraft Desktop App — Complete Backend Blueprint
 
 > **Purpose**: This document is a **self-contained specification** for another AI model to implement the full desktop app backend by mirroring the web app (`I:\TrivoxAIModels_BACKUP`). Follow every section in order; nothing is optional unless marked `[OPTIONAL]`.
 
@@ -70,7 +70,7 @@ I:\TrivoxAIModels_BACKUP\
 ### Desktop App Target Architecture
 
 ```
-I:\trivoxmodels_desktop_app\
+I:\VoxelCraft_desktop_app\
 ├── config/
 │   ├── settings.py          # [MODIFY] Add local_min_ram_gb, TripoSR configs
 │   ├── payment_config.py    # [KEEP] Already identical to web
@@ -146,7 +146,7 @@ try:
             _candidates.append(Path(_meipass) / ".env")
         _appdata = os.environ.get("APPDATA", "")
         if _appdata:
-            _candidates.append(Path(_appdata) / "TrivoxModels" / ".env")
+            _candidates.append(Path(_appdata) / "VoxelCraft" / ".env")
     for _env_path in _candidates:
         if _env_path.exists():
             for line in _env_path.read_text().splitlines():
@@ -231,7 +231,7 @@ The web app already has the solution: `registered_devices` table on Supabase tra
 
 #### 3.1. Copy web app's `core/server_auth.py` to desktop
 
-This file is the **key anti-tamper module**. It already works with the same Supabase tables. Copy it as-is from `I:\TrivoxAIModels_BACKUP\core\server_auth.py` → `I:\trivoxmodels_desktop_app\core\server_auth.py`.
+This file is the **key anti-tamper module**. It already works with the same Supabase tables. Copy it as-is from `I:\TrivoxAIModels_BACKUP\core\server_auth.py` → `I:\VoxelCraft_desktop_app\core\server_auth.py`.
 
 Functions provided:
 - `check_device_server(fingerprint)` — Checks if device exists in `registered_devices`
@@ -530,7 +530,7 @@ def _on_buy_credits(self):
     if gumroad_id:
         # Include user_id in the Gumroad URL for webhook matching
         user_id = self.session_manager.user_id
-        gumroad_url = f"https://trivoxmodels.gumroad.com/l/{gumroad_id}"
+        gumroad_url = f"https://VoxelCraft.gumroad.com/l/{gumroad_id}"
         
         # Open in system browser
         webbrowser.open(gumroad_url)
@@ -1044,7 +1044,7 @@ ui/web/                            # Web UI (api.py, templates, static)
 
 ```env
 # ═══════════════════════════════════════════════════════════
-# TrivoxModels Desktop App — Environment Configuration
+# VoxelCraft Desktop App — Environment Configuration
 # ═══════════════════════════════════════════════════════════
 
 # Supabase (REQUIRED)
@@ -1063,14 +1063,14 @@ NEURAL4D_API_KEY=
 
 # Optional
 OUTPUT_DIR=
-UPDATE_URL=https://raw.githubusercontent.com/your-repo/TrivoxModels/main/updates.json
+UPDATE_URL=https://raw.githubusercontent.com/your-repo/VoxelCraft/main/updates.json
 ```
 
 ### Security Note
 
 For the **distributed binary** (PyInstaller build), the `.env` file should be:
 1. Bundled inside the PyInstaller MEIPASS directory (so it's part of the executable)
-2. OR placed in `%APPDATA%/TrivoxModels/.env` at install time
+2. OR placed in `%APPDATA%/VoxelCraft/.env` at install time
 
 **NEVER** expose the service_role key in a web browser context. It's safe in a desktop binary because the user cannot easily inspect bundled files.
 
@@ -1109,7 +1109,7 @@ requests>=2.31.0
 
 Add new data files to the spec:
 ```python
-# In TrivoxModels.spec
+# In VoxelCraft.spec
 datas=[
     ('.env', '.'),
     ('assets/', 'assets/'),
@@ -1165,4 +1165,4 @@ hiddenimports=[
 
 ---
 
-> **Note for the implementing model**: Every file reference in this document uses absolute paths relative to `I:\trivoxmodels_desktop_app\` (desktop) and `I:\TrivoxAIModels_BACKUP\` (web source). When copying files, watch for import path differences — the web app uses `from core.X import Y` which should work identically in the desktop app since both have the same package structure.
+> **Note for the implementing model**: Every file reference in this document uses absolute paths relative to `I:\VoxelCraft_desktop_app\` (desktop) and `I:\TrivoxAIModels_BACKUP\` (web source). When copying files, watch for import path differences — the web app uses `from core.X import Y` which should work identically in the desktop app since both have the same package structure.

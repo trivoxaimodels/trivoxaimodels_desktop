@@ -51,7 +51,7 @@ Thumbs.db
 # PyInstaller
 *.manifest
 *.spec
-!TrivoxModels.spec
+!VoxelCraft.spec
 build/
 dist/
 *.exe
@@ -91,4 +91,4 @@ nul
 !config/device_fp.json
 
 # Local cache
-.trivoxmodels/
+.VoxelCraft/

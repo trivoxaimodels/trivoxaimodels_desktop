@@ -1,5 +1,5 @@
 """
-UI modules for TrivoxModels Desktop Application.
+UI modules for VoxelCraft Desktop Application.
 """
 
 from .main_window import MainWindow

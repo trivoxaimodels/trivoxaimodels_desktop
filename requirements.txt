@@ -1,4 +1,4 @@
-# TrivoxModels Desktop Application Dependencies
+# VoxelCraft Desktop Application Dependencies
 # ==========================================
 # Complete requirements for desktop app build
 

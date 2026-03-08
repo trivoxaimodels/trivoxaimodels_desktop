@@ -1,6 +1,6 @@
 # Razorpay Payment Gateway Integration
 
-This document describes the secure Razorpay payment gateway integration for TrivoxModels Desktop Application.
+This document describes the secure Razorpay payment gateway integration for VoxelCraft Desktop Application.
 
 ## Overview
 

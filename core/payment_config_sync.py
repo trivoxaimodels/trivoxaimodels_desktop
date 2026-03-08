@@ -27,8 +27,8 @@ from core.supabase_client import get_supabase
 logger = get_logger(__name__)
 
 # Configuration
-WEB_API_BASE_URL = os.getenv("WEB_API_URL", "https://trivoxaimodels-r5ip.onrender.com/api/v1")
-CACHE_FILE_PATH = Path.home() / ".trivoxmodels" / "payment_config_cache.json"
+WEB_API_BASE_URL = os.getenv("WEB_API_URL", "https://voxelcraft.onrender.com/api/v1")
+CACHE_FILE_PATH = Path.home() / ".VoxelCraft" / "payment_config_cache.json"
 CACHE_TTL_MINUTES = 5
 
 

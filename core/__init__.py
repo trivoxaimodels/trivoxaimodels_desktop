@@ -1,5 +1,5 @@
 """
-Core modules for TrivoxModels Desktop Application.
+Core modules for VoxelCraft Desktop Application.
 """
 
 from .session_manager import SessionManager

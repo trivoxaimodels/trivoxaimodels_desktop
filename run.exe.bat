@@ -1,14 +1,14 @@
 @echo off
-REM TrivoxModels - Run Built Executable
+REM VoxelCraft - Run Built Executable
 REM ===================================
 REM Runs the compiled executable from dist folder
 
 echo ============================================
-echo TrivoxModels - Running Executable
+echo VoxelCraft - Running Executable
 echo ============================================
 echo.
 
-set "APP_NAME=TrivoxModels"
+set "APP_NAME=VoxelCraft"
 set "EXE_PATH=dist\%APP_NAME%.exe"
 
 REM Check if executable exists

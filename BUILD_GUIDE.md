@@ -1,6 +1,6 @@
-# TrivoxModels Desktop Application - Build Guide
+# VoxelCraft Desktop Application - Build Guide
 
-Complete guide for building the TrivoxModels desktop application with professional Windows installer.
+Complete guide for building the VoxelCraft desktop application with professional Windows installer.
 
 ## Prerequisites
 
@@ -25,7 +25,7 @@ Complete guide for building the TrivoxModels desktop application with profession
 build.bat
 ```
 
-This creates a standalone executable at `dist\TrivoxModels.exe`.
+This creates a standalone executable at `dist\VoxelCraft.exe`.
 
 ### Complete Build (Executable + Installer)
 
@@ -34,9 +34,9 @@ build_complete.bat
 ```
 
 This creates:
-- `dist\TrivoxModels.exe` - Standalone executable
-- `installer\output\TrivoxModels_Setup_v1.0.0.exe` - Windows installer
-- `TrivoxModels_v1.0.0_Complete.zip` - Distribution package
+- `dist\VoxelCraft.exe` - Standalone executable
+- `installer\output\VoxelCraft_Setup_v1.0.0.exe` - Windows installer
+- `VoxelCraft_v1.0.0_Complete.zip` - Distribution package
 
 ## Build Process Details
 
@@ -75,7 +75,7 @@ Key dependencies:
 PyInstaller bundles the application:
 
 ```
-pyinstaller TrivoxModels.spec --clean --noconfirm
+pyinstaller VoxelCraft.spec --clean --noconfirm
 ```
 
 Build time: 30-60 minutes (depending on system)
@@ -85,7 +85,7 @@ Build time: 30-60 minutes (depending on system)
 Inno Setup creates a professional installer:
 
 ```
-installer\TrivoxModels.iss
+installer\VoxelCraft.iss
 ```
 
 Features:
@@ -118,7 +118,7 @@ HITEM3D_CLIENT_SECRET=
 
 Update version in these files:
 - `main.py` - `app.setApplicationVersion("1.0.0")`
-- `installer/TrivoxModels.iss` - `#define AppVersion "1.0.0"`
+- `installer/VoxelCraft.iss` - `#define AppVersion "1.0.0"`
 - `build_complete.bat` - `set "APP_VERSION=1.0.0"`
 
 ## Custom Branding
@@ -154,20 +154,20 @@ Place `logo.ico` in `assets/logo/` for the application icon.
 - Try: `pip cache purge`
 
 #### 4. "Build failed! Please check the error messages"
-- Check `build/TrivoxModels/warn-TrivoxModels.txt` for warnings
-- Set `console=True` in `TrivoxModels.spec` for debug output
+- Check `build/VoxelCraft/warn-VoxelCraft.txt` for warnings
+- Set `console=True` in `VoxelCraft.spec` for debug output
 - Check for missing imports in `hiddenimports` list
 
 #### 5. "Executable not found after build"
 - Check if PyInstaller completed successfully
 - Look for errors in build output
-- Verify `TrivoxModels.spec` is correct
+- Verify `VoxelCraft.spec` is correct
 
 ### Debug Mode
 
 To see console output for debugging:
 
-1. Edit `TrivoxModels.spec`
+1. Edit `VoxelCraft.spec`
 2. Change `console=False` to `console=True`
 3. Rebuild with `build.bat`
 
@@ -175,7 +175,7 @@ To see console output for debugging:
 
 If you get import errors when running the executable:
 
-1. Add the missing module to `hiddenimports` in `TrivoxModels.spec`
+1. Add the missing module to `hiddenimports` in `VoxelCraft.spec`
 2. Rebuild the application
 
 Example:
@@ -189,15 +189,15 @@ hiddenimports = [
 ## File Structure
 
 ```
-TrivoxModels_desktop_app/
+VoxelCraft_desktop_app/
 ├── build.bat              # Simple build script
 ├── build_complete.bat     # Full build with installer
 ├── requirements.txt       # Python dependencies
-├── TrivoxModels.spec          # PyInstaller configuration
+├── VoxelCraft.spec          # PyInstaller configuration
 ├── main.py                # Application entry point
 ├── .env.example           # Environment template
 ├── installer/
-│   ├── TrivoxModels.iss       # Inno Setup script
+│   ├── VoxelCraft.iss       # Inno Setup script
 │   ├── setup_assets/
 │   │   ├── LICENSE.txt
 │   │   ├── logo.bmp       # Optional
@@ -236,15 +236,15 @@ TrivoxModels_desktop_app/
 
 ### Testing the Installer
 
-1. Run `installer\output\TrivoxModels_Setup_v1.0.0.exe`
-2. Verify installation in `C:\Program Files\TrivoxModels`
+1. Run `installer\output\VoxelCraft_Setup_v1.0.0.exe`
+2. Verify installation in `C:\Program Files\VoxelCraft`
 3. Test desktop shortcut
 4. Test application launch
 5. Test uninstall from Control Panel
 
 ### Distribution Package
 
-The `TrivoxModels_v1.0.0_Complete.zip` contains:
+The `VoxelCraft_v1.0.0_Complete.zip` contains:
 - Windows installer executable
 - Ready for distribution
 
@@ -259,4 +259,4 @@ To enable auto-updates:
 For issues or questions:
 - Check the troubleshooting section above
 - Review build logs in `build_log.txt`
-- Contact support at support@TrivoxModels.com
+- Contact support at support@VoxelCraft.com

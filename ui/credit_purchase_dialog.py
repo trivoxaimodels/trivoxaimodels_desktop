@@ -409,7 +409,7 @@ class CreditPurchaseDialog(QDialog):
             QMessageBox.warning(self, "Error", "Payment not available for this pack.")
             return
 
-        purchase_url = f"https://trivoxmodels.gumroad.com/l/{gumroad_id}"
+        purchase_url = f"https://VoxelCraft.gumroad.com/l/{gumroad_id}"
         webbrowser.open(purchase_url)
 
         QMessageBox.information(

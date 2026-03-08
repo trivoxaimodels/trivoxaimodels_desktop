@@ -1,5 +1,5 @@
 """
-Session Manager for TrivoxModels Desktop
+Session Manager for VoxelCraft Desktop
 
 Manages user sessions with:
   - Device fingerprint authentication (mirrors web app server_auth.py)

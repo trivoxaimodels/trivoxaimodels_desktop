@@ -43,7 +43,7 @@ The web application provides:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    TrivoxModels Desktop                     │
+│                    VoxelCraft Desktop                     │
 ├─────────────────────────────────────────────────────────────┤
 │  UI Layer (PySide6)                                         │
 │  ├── main_window.py - Main application window               │
@@ -360,7 +360,7 @@ class SecureModelStorage:
     def get_secure_storage_path() -> Path:
         """Get path in AppData that user cannot easily access"""
         appdata = os.environ.get("APPDATA", str(Path.home()))
-        secure_path = Path(appdata) / "TrivoxModels" / "models"
+        secure_path = Path(appdata) / "VoxelCraft" / "models"
         secure_path.mkdir(parents=True, exist_ok=True)
         
         # Set restrictive permissions (Windows)
@@ -828,15 +828,15 @@ build_complete.bat
 ```
 
 The build will create:
-- `dist/TrivoxModels/` - Standalone application
-- `installer/TrivoxModels.exe` - NSIS installer
+- `dist/VoxelCraft/` - Standalone application
+- `installer/VoxelCraft.exe` - NSIS installer
 
 ### Creating Installer
 
 ```bash
 # Requires NSIS installed
 cd installer
-iscc TrivoxModels.iss
+iscc VoxelCraft.iss
 ```
 
 ---

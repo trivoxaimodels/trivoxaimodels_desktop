@@ -1,12 +1,12 @@
 """
-Authentication Dialog for TrivoxModels Desktop
+Authentication Dialog for VoxelCraft Desktop
 
 Provides login options:
   - Device fingerprint login
   - Google OAuth
   - GitHub OAuth
 
-Theme matches the TrivoxModels UI design (fordesktopapp.png):
+Theme matches the VoxelCraft UI design (fordesktopapp.png):
   - Deep dark navy background (#0a0e1a)
   - Card surfaces (#111827 / #1a2332)
   - Cyan/teal accent (#00b4d8 / #0ea5e9)
@@ -83,7 +83,7 @@ class OAuthCallbackHandler(http.server.SimpleHTTPRequestHandler):
                     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                     body: 'code=' + encodeURIComponent(code)
                 }).then(() => {
-                    document.getElementById('msg').innerHTML = "<h1>Login Successful! ✅</h1><p>You can close this window and return to the TrivoxModels app.</p>";
+                    document.getElementById('msg').innerHTML = "<h1>Login Successful! ✅</h1><p>You can close this window and return to the VoxelCraft app.</p>";
                 }).catch(e => {
                     document.getElementById('msg').innerHTML = "<h1>Error ❌</h1><p>Failed to send token to the app.</p>";
                 });
@@ -209,7 +209,7 @@ class AuthDialog(QDialog):
       - Google OAuth login
       - GitHub OAuth login
 
-    Styled to match the TrivoxModels UI theme from fordesktopapp.png:
+    Styled to match the VoxelCraft UI theme from fordesktopapp.png:
       - Deep dark navy/space background
       - Cyan/blue accent colors
       - Modern card-based layout with subtle glow
@@ -242,7 +242,7 @@ class AuthDialog(QDialog):
         self.session_manager = session_manager
         self.oauth_thread: Optional[OAuthCallbackThread] = None
 
-        self.setWindowTitle("TrivoxModels - Sign In")
+        self.setWindowTitle("VoxelCraft - Sign In")
         self.setFixedSize(520, 620)
         self.setModal(True)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
@@ -283,7 +283,7 @@ class AuthDialog(QDialog):
         layout.addLayout(close_row)
 
         # ── title ────────────────────────────────────────────────
-        title = QLabel("Welcome to TrivoxModels")
+        title = QLabel("Welcome to VoxelCraft")
         title.setObjectName("authTitle")
         title.setAlignment(Qt.AlignCenter)
         layout.addWidget(title)
@@ -392,7 +392,7 @@ class AuthDialog(QDialog):
 
     # ── stylesheet ───────────────────────────────────────────────
     def _apply_styles(self):
-        """Apply the TrivoxModels theme stylesheet."""
+        """Apply the VoxelCraft theme stylesheet."""
         self.setStyleSheet(f"""
             /* ── main card ─────────────────────────────────── */
             #authMainCard {{

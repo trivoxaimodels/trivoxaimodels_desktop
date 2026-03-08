@@ -6,7 +6,7 @@
 #define AppName "Voxel Craft"
 #define AppVersion "1.0.0"
 #define AppPublisher "Voxel Craft"
-#define AppURL "https://voxelcraft.ai"
+#define AppURL "https://voxelcraft.onrender.com"
 #define AppExeName "VoxelCraft.exe"
 #define AppGUID "{{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}}"
 
@@ -82,17 +82,16 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked; OnlyBelowVersion: 6.1; Check: not IsAdminInstallMode
 
 [Files]
-; Main executable
+; Main executable (all dependencies bundled via PyInstaller)
 Source: "..\dist\VoxelCraft.exe"; DestDir: "{app}"; Flags: ignoreversion
 
-; Configuration files
-Source: "..\.env.example"; DestDir: "{app}"; Flags: ignoreversion; AfterInstall: CreateEnvFile
-
-; Assets directory
+; Assets directory (icons, logos, etc.)
 Source: "..\assets\*"; DestDir: "{app}\assets"; Flags: ignoreversion recursesubdirs createallsubdirs
 
-; Documentation
-Source: "..\README.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+; Documentation (optional)
+Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
+
+; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\assets\logo\logo.ico"

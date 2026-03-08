@@ -532,7 +532,7 @@ class MainWindow(QMainWindow):
 
         self.session_manager = session_manager
         self.selected_file: Optional[str] = None
-        self.output_dir = Path.home() / "TrivoxModels" / "outputs"
+        self.output_dir = Path.home() / "VoxelCraft" / "outputs"
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         self.worker: Optional[GenerationWorker] = None
@@ -3007,7 +3007,7 @@ class MainWindow(QMainWindow):
         """Start local processing (FREE - no credits needed)."""
 
         # Check if user wants to see the CPU warning modal
-        settings = QSettings("TrivoxModels", "TrivoxAIModels")
+        settings = QSettings("VoxelCraft", "VoxelCraftAIModels")
         dont_show_again = settings.value("dont_show_cpu_warning", False, type=bool)
 
         if not dont_show_again:

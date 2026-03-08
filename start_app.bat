@@ -1,10 +1,10 @@
 @echo off
-REM TrivoxModels Desktop Application - Start Script
+REM VoxelCraft Desktop Application - Start Script
 REM ================================================
 REM Runs the application with virtual environment support
 
 echo ============================================
-echo TrivoxModels Desktop Application
+echo VoxelCraft Desktop Application
 echo ============================================
 echo.
 
@@ -62,7 +62,7 @@ if not exist ".env" (
 )
 
 REM Run the application
-echo [3/3] Starting TrivoxModels...
+echo [3/3] Starting VoxelCraft...
 echo ============================================
 echo.
 

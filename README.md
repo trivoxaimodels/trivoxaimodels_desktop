@@ -1,4 +1,4 @@
-# TrivoxModels Desktop Application
+# VoxelCraft Desktop Application
 
 Desktop application for 3D model generation from images using AI.
 
@@ -38,8 +38,8 @@ Desktop application for 3D model generation from images using AI.
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-repo/TrivoxModels-desktop.git
-   cd TrivoxModels-desktop
+   git clone https://github.com/your-repo/VoxelCraft-desktop.git
+   cd VoxelCraft-desktop
    ```
 
 2. Create a virtual environment:
@@ -77,7 +77,7 @@ Desktop application for 3D model generation from images using AI.
 pip install pyinstaller
 
 pyinstaller --onefile --windowed \
-  --name "TrivoxModels" \
+  --name "VoxelCraft" \
   --icon "assets/logo/logo.ico" \
   --add-data "ui/styles;ui/styles" \
   --add-data "assets;assets" \
@@ -94,7 +94,7 @@ The executable will be created in the `dist/` directory.
 2. Enable Google and GitHub OAuth in Authentication > Providers
 3. Add your redirect URLs:
    - For development: `http://localhost:8000/auth/callback`
-   - For desktop: `TrivoxModels://auth/callback`
+   - For desktop: `VoxelCraft://auth/callback`
 4. Copy your project URL and anon key to `.env`
 
 ### Database Tables
@@ -109,7 +109,7 @@ The application expects the following Supabase tables:
 ## Project Structure
 
 ```
-TrivoxModels_desktop_app/
+VoxelCraft_desktop_app/
 ├── main.py                 # Application entry point
 ├── requirements.txt        # Python dependencies
 ├── .env.example           # Environment template
