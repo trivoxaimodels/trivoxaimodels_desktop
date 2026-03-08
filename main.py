@@ -39,18 +39,42 @@ def get_resource_path(relative_path: str) -> str:
     return os.path.join(base_path, relative_path)
 
 
+def register_uri_scheme():
+    """Register voxelcraft:// URI scheme in Windows Registry to allow web app deep-linking."""
+    if sys.platform != 'win32':
+        return
+        
+    try:
+        import winreg
+        key_path = r"Software\Classes\voxelcraft"
+        
+        # Open or create the voxelcraft classes key
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path) as key:
+            winreg.SetValue(key, "", winreg.REG_SZ, "URL:VoxelCraft Protocol")
+            winreg.SetValueEx(key, "URL Protocol", 0, winreg.REG_SZ, "")
+            
+            with winreg.CreateKey(key, r"shell\open\command") as cmd_key:
+                if getattr(sys, 'frozen', False):
+                    # PyInstaller bundle
+                    app_path = f'"{sys.executable}"'
+                else:
+                    # Dev script
+                    app_path = f'"{sys.executable}" "{os.path.abspath(sys.argv[0])}"'
+                    
+                # The browser will pass the URI as the first argument
+                winreg.SetValue(cmd_key, "", winreg.REG_SZ, f'{app_path} "%1"')
+                
+    except Exception as e:
+        print(f"Could not register URI scheme: {e}")
+
+
 def main():
     """Main entry point for the desktop application."""
-    # Force PySide6 to use software OpenGL for QWebEngine compatibility on various drivers
     from PySide6.QtCore import Qt, QCoreApplication
-    os.environ["QT_OPENGL"] = "software"
-    QCoreApplication.setAttribute(Qt.AA_UseSoftwareOpenGL)
     
-    # Use software rendering for WebEngine to ensure compatibility on all systems
-    # This avoids D3D11/EGL errors on virtual machines and incompatible GPU drivers
-    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--ignore-gpu-blocklist --enable-webgl --use-angle=swiftshader --disable-gpu"
+    # Enable WebGL and hardware acceleration for better performance
+    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--ignore-gpu-blocklist --enable-webgl"
     os.environ["QTWEBENGINE_DISABLE_SANDBOX"] = "1"
-    os.environ["QT_OPENGL"] = "software"
     
     # Enable high DPI scaling
     QApplication.setHighDpiScaleFactorRoundingPolicy(
@@ -66,6 +90,9 @@ def main():
     icon_path = get_resource_path("assets/logo/logo.ico")
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
+        
+    # Register URI deep linking scheme
+    register_uri_scheme()
     
     # Load stylesheet
     styles_path = get_resource_path("ui/styles/styles.qss")

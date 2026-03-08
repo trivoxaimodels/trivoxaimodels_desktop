@@ -21,13 +21,94 @@ from PySide6.QtWidgets import (
     QWidget,
     QComboBox,
     QApplication,
+    QProgressDialog,
 )
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt, QSize, QThread, Signal
 from PySide6.QtGui import QFont, QPixmap
 
 from core.credit_manager import CREDIT_PACKS
 from core.payment_config_sync import get_credit_packs
 from core.payment_handler import get_payment_handler, PaymentHandler
+
+
+class PaymentLinkWorker(QThread):
+    finished_success = Signal(str)  # payment_url
+    finished_error = Signal(str, str)  # title, error_message
+    status_update = Signal(str)
+
+    def __init__(self, create_link_url, pack_id, user_id):
+        super().__init__()
+        self.create_link_url = create_link_url
+        self.pack_id = pack_id
+        self.user_id = user_id
+
+    def run(self):
+        import requests
+        import time
+
+        max_retries = 3
+        retry_delay = 5  # seconds
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                if attempt > 1:
+                    self.status_update.emit(f"Server waking up... Retrying (Attempt {attempt}/{max_retries})")
+                else:
+                    self.status_update.emit("Connecting to payment server...")
+                
+                response = requests.post(
+                    self.create_link_url,
+                    json={"pack_id": self.pack_id, "user_id": self.user_id, "source": "desktop"},
+                    timeout=25,  # Give 25 seconds per request
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    if data.get("success") and data.get("payment_url"):
+                        self.finished_success.emit(data["payment_url"])
+                        return
+                    else:
+                        error_msg = data.get("error", "Unknown error")
+                        self.finished_error.emit("Payment Error", f"Failed to create payment link:\n{error_msg}")
+                        return
+                elif response.status_code in [502, 503, 504]:
+                    # These can happen during Render cold start
+                    if attempt < max_retries:
+                        time.sleep(retry_delay)
+                        continue
+                else:
+                    self.finished_error.emit("Payment Error", f"Server returned error {response.status_code}.\nPlease try again later.")
+                    return
+
+            except requests.exceptions.Timeout:
+                if attempt < max_retries:
+                    time.sleep(retry_delay)
+                    continue
+                else:
+                    self.finished_error.emit(
+                        "Timeout", 
+                        "Payment server took too long to respond.\n"
+                        "The server is currently warming up due to inactivity.\n"
+                        "Please wait 2 minutes and try clicking 'Buy Now' again."
+                    )
+                    return
+            except requests.exceptions.ConnectionError:
+                self.finished_error.emit(
+                    "Connection Error", 
+                    "Cannot connect to payment server.\n"
+                    "Please check your internet connection and try again."
+                )
+                return
+            except Exception as e:
+                self.finished_error.emit("Payment Error", f"An unexpected error occurred:\n{str(e)}")
+                return
+        
+        # If loop finishes without returning, we exhausted retries
+        self.finished_error.emit(
+            "Timeout", 
+            "Server took too long to wake up.\n"
+            "Please try again in a few moments."
+        )
 
 
 class CreditPurchaseDialog(QDialog):
@@ -321,86 +402,66 @@ class CreditPurchaseDialog(QDialog):
         self, pack_id: str, pack_info: Dict[str, Any], user_id: str
     ):
         """Purchase credits using Razorpay via the web app's payment link API."""
-        import requests
-
         # The web server has the Razorpay API keys and creates a payment link
         # Desktop app calls the same endpoint the web frontend uses
-        WEB_BASE = os.getenv(
-            "WEB_API_URL", "https://trivoxaimodels-r5ip.onrender.com"
-        ).rstrip("/api/v1").rstrip("/")
+        web_base = os.getenv(
+            "WEB_API_URL", "https://voxelcraft.onrender.com/api/v1"
+        )
+        if web_base.endswith("/api/v1"):
+            web_base = web_base.replace("/api/v1", "")
+        WEB_BASE = web_base.rstrip("/")
 
         create_link_url = f"{WEB_BASE}/api/razorpay/create-link"
 
-        try:
-            QApplication.setOverrideCursor(Qt.WaitCursor)
+        # Show waiting dialog
+        self.progress_dialog = QProgressDialog(
+            "Waking up payment server... Please wait a moment.", 
+            "Cancel", 0, 0, self
+        )
+        self.progress_dialog.setWindowTitle("Processing Request")
+        self.progress_dialog.setWindowModality(Qt.WindowModal)
+        self.progress_dialog.setMinimumDuration(0)
+        
+        # Disable the cancel button intentionally to prevent cancelling requests mid-flight
+        cancel_btn = self.progress_dialog.findChild(QPushButton)
+        if cancel_btn:
+            cancel_btn.hide()
+            
+        self.progress_dialog.show()
 
-            response = requests.post(
-                create_link_url,
-                json={"pack_id": pack_id, "user_id": user_id, "source": "desktop"},
-                timeout=15,
-            )
+        # Start background worker
+        self.worker = PaymentLinkWorker(create_link_url, pack_id, user_id)
+        
+        def on_status_update(status_text):
+            if hasattr(self, 'progress_dialog') and self.progress_dialog.isVisible():
+                self.progress_dialog.setLabelText(status_text)
+                
+        def on_success(payment_url):
+            if hasattr(self, 'progress_dialog'):
+                self.progress_dialog.close()
+            
+            # Start polling immediately without blocking the UI
+            self._start_polling()
+            
+            # Open browser for payment
+            webbrowser.open(payment_url)
+            
+            # Update the UI internally to show waiting status
+            self.buy_btn = self.findChild(QPushButton, "buy_button")
+            if self.buy_btn:
+                self.buy_btn.setText("Waiting for Payment...")
+                self.buy_btn.setEnabled(False)
+            
+        def on_error(title, msg):
+            if hasattr(self, 'progress_dialog'):
+                self.progress_dialog.close()
+            QMessageBox.critical(self, title, msg)
 
-            QApplication.restoreOverrideCursor()
-
-            if response.status_code == 200:
-                data = response.json()
-                if data.get("success") and data.get("payment_url"):
-                    # Open the Razorpay payment link in browser
-                    payment_url = data["payment_url"]
-                    webbrowser.open(payment_url)
-
-                    currency_sym = getattr(self, '_currency_sym', '₹')
-                    QMessageBox.information(
-                        self,
-                        "Purchase Started",
-                        f"✅ Payment link created!\n\n"
-                        f"Pack: {pack_info['name']}\n"
-                        f"Price: {currency_sym}{pack_info['price']}\n"
-                        f"Credits: +{pack_info['credits']}\n\n"
-                        f"Complete the payment in the browser.\n"
-                        f"Your credits will be added automatically.",
-                    )
-
-                    # Start polling for balance update
-                    self._start_polling()
-                else:
-                    error_msg = data.get("error", "Unknown error")
-                    QMessageBox.critical(
-                        self,
-                        "Payment Error",
-                        f"Failed to create payment link:\n{error_msg}",
-                    )
-            else:
-                QMessageBox.critical(
-                    self,
-                    "Payment Error",
-                    f"Server returned error {response.status_code}.\n"
-                    f"Please try again later.",
-                )
-
-        except requests.exceptions.Timeout:
-            QApplication.restoreOverrideCursor()
-            QMessageBox.warning(
-                self,
-                "Timeout",
-                "Payment server took too long to respond.\n"
-                "Please check your internet connection and try again.",
-            )
-        except requests.exceptions.ConnectionError:
-            QApplication.restoreOverrideCursor()
-            QMessageBox.warning(
-                self,
-                "Connection Error",
-                "Cannot connect to payment server.\n"
-                "Please check your internet connection and try again.",
-            )
-        except Exception as e:
-            QApplication.restoreOverrideCursor()
-            QMessageBox.critical(
-                self,
-                "Payment Error",
-                f"An unexpected error occurred:\n{str(e)}",
-            )
+        self.worker.status_update.connect(on_status_update)
+        self.worker.finished_success.connect(on_success)
+        self.worker.finished_error.connect(on_error)
+        
+        self.worker.start()
 
     def _purchase_with_gumroad(self, pack_id: str, pack_info: Dict[str, Any]):
         """Purchase credits using Gumroad."""
@@ -439,20 +500,14 @@ class CreditPurchaseDialog(QDialog):
 
     def _start_polling(self):
         """Start polling for credit balance update."""
-        from core.credit_manager import get_user_balance
         from PySide6.QtCore import QTimer
 
         self._poll_timer = QTimer()
         self._poll_timer.timeout.connect(self._check_balance_update)
         self._poll_timer.start(5000)  # Check every 5 seconds
 
-        # Get initial balance
-        try:
-            balance_info = get_user_balance(self.parent().session_manager.user_id)
-            self._poll_initial_balance = balance_info.get("credits_balance", 0)
-        except Exception:
-            self._poll_initial_balance = self.current_balance
-
+        # Baseline is strictly from when the dialog was opened to prevent race conditions
+        self._poll_initial_balance = self.current_balance
         self._poll_count = 0
 
     def _check_balance_update(self):
