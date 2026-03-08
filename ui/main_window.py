@@ -2801,7 +2801,12 @@ class MainWindow(QMainWindow):
                 if cached_balance
                 else getattr(self.session_manager, "credits", 0)
             )
-            dialog = CreditPurchaseDialog(self, current_credits)
+            dialog = CreditPurchaseDialog(
+                self, 
+                current_balance=current_credits,
+                user_id=user_id,
+                user_email=getattr(self.session_manager, 'email', '')
+            )
         except Exception as e:
             print(f"[MainWindow] Buy credits dialog error: {e}")
             self.setCursor(Qt.ArrowCursor)
